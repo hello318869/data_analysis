@@ -16,6 +16,10 @@ async def index(request: Request):
     """首页 - 系统入口"""
     with get_db() as db:
         user = request.session.get("user")
+        error = request.session.pop("flash_error", None)
+        message = request.session.pop("flash_message", None)
         return templates.TemplateResponse(request, "index.html", {
-            "user": user
+            "user": user,
+            "error": error,
+            "message": message,
         })
