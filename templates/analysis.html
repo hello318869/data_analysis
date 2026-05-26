@@ -396,26 +396,39 @@
 
 {% block extra_scripts %}
 <script>
-document.querySelectorAll(".analysis-json-form").forEach((form) => {
-    form.addEventListener("submit", async (event) => {
-        event.preventDefault();
+function bindAnalysisForms() {
+    document.querySelectorAll(".analysis-json-form").forEach((form) => {
+        form.addEventListener("submit", async (event) => {
+            event.preventDefault();
 
-        const featureSelect = form.querySelector("select[name='features']");
-        const targetSelect = form.querySelector("select[name='target']");
-        const features = Array.from(featureSelect.selectedOptions).map((option) => option.value);
-        const target = targetSelect.value;
+            const featureSelect = form.querySelector("select[name='features']");
+            const targetSelect = form.querySelector("select[name='target']");
+            const features = Array.from(featureSelect.selectedOptions).map((option) => option.value);
+            const target = targetSelect.value;
 
-        const response = await fetch(form.dataset.action, {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({features: features, target: target})
+            const response = await fetch(form.dataset.action, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({features: features, target: target})
+            });
+
+            const html = await response.text();
+            const parser = new DOMParser();
+            const nextDocument = parser.parseFromString(html, "text/html");
+            const currentMain = document.querySelector(".main-content");
+            const nextMain = nextDocument.querySelector(".main-content");
+
+            if (currentMain && nextMain) {
+                document.title = nextDocument.title;
+                currentMain.innerHTML = nextMain.innerHTML;
+                bindAnalysisForms();
+            } else {
+                window.location.reload();
+            }
         });
-
-        const html = await response.text();
-        document.open();
-        document.write(html);
-        document.close();
     });
-});
+}
+
+bindAnalysisForms();
 </script>
 {% endblock %}
