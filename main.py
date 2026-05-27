@@ -10,7 +10,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from config import SECRET_KEY, BASE_DIR
 from models import engine, Base
 from routes import main_routes, auth_routes, history_routes
-from routes import analysis_routes
+from routes import analysis_routes, data_routes
 
 # Create all tables on startup
 try:
@@ -35,9 +35,11 @@ app.include_router(main_routes.router)
 app.include_router(analysis_routes.router, prefix="/analysis", tags=["算法分析"])
 app.include_router(auth_routes.router, prefix="/auth", tags=["认证"])
 app.include_router(history_routes.router, prefix="/history", tags=["历史记录"])
+app.include_router(data_routes.router, prefix="/data", tags=["数据管理"])
 
 # Share templates with route modules
 main_routes.templates = templates
 analysis_routes.templates = templates
 auth_routes.templates = templates
 history_routes.templates = templates
+data_routes.templates = templates

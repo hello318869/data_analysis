@@ -141,8 +141,7 @@
     </p>
     <div class="cta-buttons">
         {% if user %}
-            <a href="/clean" class="btn btn-primary btn-lg">开始数据清洗</a>
-            <a href="/viz" class="btn btn-outline btn-lg">创建可视化</a>
+            <a href="/data/upload" class="btn btn-primary btn-lg">上传数据开始分析</a>
         {% else %}
             <a href="/auth/register" class="btn btn-primary btn-lg">免费注册</a>
             <a href="/auth/login" class="btn btn-outline btn-lg">立即登录</a>
@@ -157,8 +156,8 @@
         欢迎回来，<strong>{{ user.username }}</strong>！开始你的数据分析之旅吧。
     </div>
     <div class="quick-actions">
+        <a href="/data/upload" class="btn btn-sm btn-primary">📤 上传数据</a>
         <a href="/history" class="btn btn-sm btn-outline">📋 历史记录</a>
-        <a href="/analyze" class="btn btn-sm btn-primary">🔬 算法分析</a>
     </div>
 </div>
 {% endif %}

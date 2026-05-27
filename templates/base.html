@@ -449,9 +449,10 @@
             <ul class="navbar-links">
                 <li><a href="/" class="{% if request.url.path == '/' %}nav-active{% endif %}">首页</a></li>
                 {% if user %}
+                <li><a href="/data/upload" class="{% if request.url.path.startswith('/data') %}nav-active{% endif %}">数据管理</a></li>
                 <li><a href="/clean" class="{% if request.url.path == '/clean' %}nav-active{% endif %}">数据清洗</a></li>
                 <li><a href="/viz" class="{% if request.url.path == '/viz' %}nav-active{% endif %}">可视化</a></li>
-                <li><a href="/analyze" class="{% if request.url.path == '/analyze' %}nav-active{% endif %}">算法分析</a></li>
+                <li><a href="/analysis" class="{% if request.url.path.startswith('/analysis') %}nav-active{% endif %}">算法分析</a></li>
                 <li><a href="/history" class="{% if request.url.path.startswith('/history') %}nav-active{% endif %}">历史记录</a></li>
                 <li><a href="/auth/logout">登出</a></li>
                 {% else %}
