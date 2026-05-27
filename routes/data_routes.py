@@ -4,7 +4,6 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from models import get_db
-from models.analysis_record import Dataset
 from services.data_service import (
     validate_file,
     validate_file_size,
@@ -36,7 +35,7 @@ async def upload_page(request: Request):
 async def handle_upload(request: Request, file: UploadFile = File(...)):
     """处理文件上传请求。"""
     try:
-        ext = validate_file(file)
+        validate_file(file)
         contents = await file.read()
         validate_file_size(len(contents))
         df = read_file_to_dataframe(contents, file.filename)
