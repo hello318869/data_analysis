@@ -129,8 +129,9 @@ def _save_analysis_record(
             )
             db.add(record)
             db.commit()
-    except Exception:
+    except Exception as exc:
         # 历史记录是附加能力，数据库临时不可用时不应影响分析结果展示。
+        print(f"保存分析记录失败：{exc}")
         return
 
 

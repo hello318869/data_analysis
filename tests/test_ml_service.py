@@ -1,7 +1,6 @@
-"""
-手动测试 services/ml_service.py。
+"""Manual smoke test for services/ml_service.py.
 
-运行方式：
+Run:
     python tests/test_ml_service.py
 """
 from __future__ import annotations
@@ -34,7 +33,7 @@ def main() -> None:
 
     regression_result = run_linear_regression(df, features, target)
     print("\nLinear regression result:")
-    print(f"R²: {regression_result['r2_score']}")
+    print(f"R2: {regression_result['r2_score']}")
     print(f"MSE: {regression_result['mse']}")
     print(f"MAE: {regression_result['mae']}")
     print(f"coefficients: {regression_result['coefficients']}")
