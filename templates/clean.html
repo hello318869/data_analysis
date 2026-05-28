@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>数据清洗 — 交互式数据分析系统</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; background: #f5f7fa; color: #333; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+        h1 { margin-bottom: 8px; }
+        h2 { margin: 24px 0 12px; border-bottom: 2px solid #409eff; padding-bottom: 6px; }
+        .navbar { background: #409eff; color: #fff; padding: 12px 24px; display: flex; gap: 20px; align-items: center; }
+        .navbar a { color: #fff; text-decoration: none; }
+        .navbar a:hover { text-decoration: underline; }
+        .alert { padding: 10px 16px; border-radius: 4px; margin: 12px 0; }
+        .alert-error { background: #fef0f0; color: #f56c6c; border: 1px solid #fde2e2; }
+        .alert-success { background: #f0f9eb; color: #67c23a; border: 1px solid #e1f3d8; }
+        table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+        th, td { padding: 8px 12px; border: 1px solid #ebeef5; text-align: left; font-size: 14px; }
+        th { background: #f5f7fa; font-weight: 600; }
+        .card { background: #fff; padding: 16px 20px; border-radius: 6px; margin: 12px 0; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+        .card h3 { margin-bottom: 10px; }
+        label { display: inline-block; min-width: 70px; margin-right: 8px; font-weight: 500; }
+        select, input[type="text"], input[type="number"] { padding: 6px 10px; border: 1px solid #dcdfe6; border-radius: 4px; margin-right: 12px; }
+        button, .btn { padding: 8px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        .btn-primary { background: #409eff; color: #fff; }
+        .btn-primary:hover { background: #337ecc; }
+        .btn-success { background: #67c23a; color: #fff; }
+        .btn-success:hover { background: #529b2e; }
+        .btn-danger { background: #f56c6c; color: #fff; }
+        .btn-danger:hover { background: #e04040; }
+        .btn-warning { background: #e6a23c; color: #fff; }
+        .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+        .column-checkboxes { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+        .column-checkboxes label { display: inline-flex; align-items: center; cursor: pointer; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 8px 0 16px; }
+        .stat-card { background: #fff; padding: 14px; border-radius: 6px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+        .stat-card .num { font-size: 28px; font-weight: 700; color: #409eff; }
+        .stat-card .label { font-size: 13px; color: #909399; margin-top: 4px; }
+    </style>
+</head>
+<body>
+<div class="navbar">
+    <strong>数据清洗模块</strong>
+    <a href="/">首页</a>
+    <a href="/clean">清洗报告</a>
+    <a href="/viz/show">可视化</a>
+    <a href="/analysis/result">分析</a>
+    <span style="margin-left:auto">
+        {% if user %}
+            {{ user.username }} | <a href="/auth/logout">登出</a>
+        {% else %}
+            <a href="/auth/login">登录</a>
+        {% endif %}
+    </span>
+</div>
+
+<div class="container">
+
+    <!-- 错误和消息 -->
+    {% if error %}
+        <div class="alert alert-error">{{ error }}</div>
+    {% endif %}
+    {% if message %}
+        <div class="alert alert-success">{{ message }}</div>
+    {% endif %}
+
+    <!-- 数据概览 -->
+    <div class="stats">
+        <div class="stat-card"><div class="num">{{ columns|length }}</div><div class="label">总列数</div></div>
+        <div class="stat-card"><div class="num">{{ missing_report|length }}</div><div class="label">含缺失值列数</div></div>
+        <div class="stat-card"><div class="num">{{ outlier_report|length }}</div><div class="label">含异常值列数</div></div>
+        {% if cleaned_count is defined %}
+            <div class="stat-card"><div class="num">{{ cleaned_count }}</div><div class="label">已处理单元格</div></div>
+        {% endif %}
+    </div>
+
+    <!-- 缺失值报告 -->
+    <h2>缺失值报告</h2>
+    {% if missing_report %}
+        <table>
+            <tr><th>列名</th><th>缺失数量</th><th>缺失比例</th><th>数据类型</th></tr>
+            {% for item in missing_report %}
+                <tr>
+                    <td>{{ item.column }}</td>
+                    <td>{{ item.missing_count }}</td>
+                    <td>{{ item.missing_pct }}%</td>
+                    <td>{{ item.dtype }}</td>
+                </tr>
+            {% endfor %}
+        </table>
+    {% else %}
+        <div class="card"><p>数据集完整，无缺失值。</p></div>
+    {% endif %}
+
+    <!-- 异常值报告 -->
+    <h2>异常值报告</h2>
+    {% if outlier_report %}
+        <table>
+            <tr><th>列名</th><th>异常值数量</th><th>异常值索引</th><th>下界</th><th>上界</th></tr>
+            {% for item in outlier_report %}
+                <tr>
+                    <td>{{ item.column }}</td>
+                    <td>{{ item.outlier_count }}</td>
+                    <td>{{ item.outlier_indices[:20] }}{% if item.outlier_indices|length > 20 %} ...{% endif %}</td>
+                    <td>{{ item.lower_bound }}</td>
+                    <td>{{ item.upper_bound }}</td>
+                </tr>
+            {% endfor %}
+        </table>
+    {% else %}
+        <div class="card"><p>未检测到异常值。</p></div>
+    {% endif %}
+
+    <!-- 数据预览 -->
+    {% if rows %}
+        <h2>清洗后数据预览（前10行）</h2>
+        <table>
+            <tr>{% for col in columns %}<th>{{ col }}</th>{% endfor %}</tr>
+            {% for row in rows %}
+                <tr>{% for val in row %}<td>{{ val }}</td>{% endfor %}</tr>
+            {% endfor %}
+        </table>
+    {% endif %}
+
+    <!-- 手动清洗面板 -->
+    <h2>手动清洗</h2>
+    <div class="card">
+        <form action="/clean/execute" method="post" id="clean-form">
+            <div class="row" style="margin-bottom:12px;">
+                <label>策略：</label>
+                <select name="strategy" id="strategy">
+                    <option value="mean">均值填充 (mean)</option>
+                    <option value="median">中位数填充 (median)</option>
+                    <option value="mode">众数填充 (mode)</option>
+                    <option value="drop">删除含缺失行 (drop)</option>
+                    <option value="custom">自定义值 (custom)</option>
+                </select>
+                <input type="number" name="fill_value" id="fill_value" placeholder="自定义填充值" step="any" style="display:none;">
+            </div>
+
+            <p style="margin-bottom:6px;"><strong>选择要清洗的列：</strong></p>
+            <div class="column-checkboxes">
+                {% for col in columns %}
+                    <label><input type="checkbox" name="columns" value="{{ col }}"> {{ col }}</label>
+                {% endfor %}
+            </div>
+
+            <button type="submit" class="btn btn-primary">执行清洗</button>
+        </form>
+    </div>
+
+    <!-- 一键自动清洗 -->
+    <h2>一键自动清洗</h2>
+    <div class="card">
+        <p style="margin-bottom:10px; color:#909399;">数值列 → 中位数填充，分类列 → 众数填充，异常值 → IQR 截断</p>
+        <form action="/clean/auto" method="post">
+            <button type="submit" class="btn btn-success">执行自动清洗</button>
+        </form>
+    </div>
+
+    <!-- 规则集清洗 -->
+    {% if saved_rules is defined and saved_rules %}
+        <h2>已保存规则集</h2>
+        <div class="card">
+            <ul>
+                {% for rule_name in saved_rules %}
+                    <li style="margin:6px 0;">
+                        <strong>{{ rule_name }}</strong>
+                        <form action="/clean/rules/apply/{{ rule_name }}" method="post" style="display:inline; margin-left:12px;">
+                            <button type="submit" class="btn btn-primary" style="padding:4px 14px;">应用</button>
+                        </form>
+                        <form action="/clean/rules/delete/{{ rule_name }}" method="post" style="display:inline;">
+                            <button type="submit" class="btn btn-danger" style="padding:4px 14px;">删除</button>
+                        </form>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+</div>
+
+<script>
+// 策略切换时显示/隐藏自定义值输入框
+document.getElementById('strategy').addEventListener('change', function() {
+    var fillInput = document.getElementById('fill_value');
+    fillInput.style.display = this.value === 'custom' ? 'inline-block' : 'none';
+    if (this.value !== 'custom') fillInput.value = '';
+});
+
+// 表单提交前将选中列转为 JSON
+document.getElementById('clean-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var strategy = document.getElementById('strategy').value;
+    var checked = document.querySelectorAll('input[name="columns"]:checked');
+    var columns = Array.from(checked).map(function(cb) { return cb.value; });
+    if (columns.length === 0) {
+        alert('请至少选择一列');
+        return;
+    }
+    var body = { strategy: strategy, columns: columns, fill_value: null };
+    if (strategy === 'custom') {
+        var fv = document.getElementById('fill_value').value;
+        body.fill_value = fv ? parseFloat(fv) : null;
+    }
+    fetch('/clean/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    }).then(function() { location.reload(); });
+});
+</script>
+</body>
+</html>
