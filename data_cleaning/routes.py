@@ -13,6 +13,7 @@ from .config import list_saved_rules, load_ruleset, save_ruleset, delete_ruleset
 
 import pandas as pd
 import json
+import io
 import os
 
 clean_bp = Blueprint("clean", __name__)
@@ -23,7 +24,7 @@ def _get_df():
     df_json = session.get("df_json")
     if df_json is None:
         return None
-    return pd.read_json(df_json, orient="split")
+    return pd.read_json(io.StringIO(df_json), orient="split")
 
 
 def _get_user():

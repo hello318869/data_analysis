@@ -256,20 +256,19 @@ def _apply_missing_strategy(df: pd.DataFrame, col: str, rule: ColumnRule) -> tup
     elif rule.missing_strategy == "mean":
         if not pd.api.types.is_numeric_dtype(df[col]):
             return 0, f"{col} 列（规则）：非数值类型，跳过均值填充"
-        df[col].fillna(df[col].mean(), inplace=True)
+        df[col] = df[col].fillna(df[col].mean())
         return col_missing, f"{col} 列（规则）：均值填充 {col_missing} 个缺失值"
     elif rule.missing_strategy == "median":
         if not pd.api.types.is_numeric_dtype(df[col]):
             return 0, f"{col} 列（规则）：非数值类型，跳过中位数填充"
-        df[col].fillna(df[col].median(), inplace=True)
+        df[col] = df[col].fillna(df[col].median())
         return col_missing, f"{col} 列（规则）：中位数填充 {col_missing} 个缺失值"
     elif rule.missing_strategy == "mode":
-        mode_vals = df[col].mode()
-        fill = mode_vals.iloc[0] if not mode_vals.empty else ""
-        df[col].fillna(fill, inplace=True)
+        mode_val = df[col].mode().iloc[0] if not df[col].mode().empty else ""
+        df[col] = df[col].fillna(mode_val)
         return col_missing, f"{col} 列（规则）：众数填充 {col_missing} 个缺失值"
     elif rule.missing_strategy == "custom" and rule.fill_value is not None:
-        df[col].fillna(rule.fill_value, inplace=True)
+        df[col] = df[col].fillna(rule.fill_value)
         return col_missing, f"{col} 列（规则）：自定义值填充 {col_missing} 个缺失值"
 
     return 0, ""
