@@ -224,3 +224,67 @@ async def last_analysis_result(request: Request):
         }
 
     return templates.TemplateResponse(request, "analysis.html", context)
+# --------------------------
+# 可视化模块路由（你的代码）
+# --------------------------
+from services.viz_service import generate_chart
+
+# 可视化页面入口
+@router.get("/viz", response_class=HTMLResponse)
+async def viz_page(request: Request):
+    """展示可视化页面。"""
+    try:
+        df = _load_dataframe_from_session(request)
+    except ValueError as exc:
+        return _redirect_home_with_message(request, str(exc))
+
+    return templates.TemplateResponse(
+        request,
+        "visualize.html",
+        _build_page_context(request, df),
+    )
+
+# 生成图表接口
+@router.post("/viz/generate", response_class=HTMLResponse)
+async def viz_generate(
+    request: Request,
+    chart_type: str = Form(...),
+    x_col: str = Form(...),
+    y_col: str = Form(...),
+    title: str = Form(None),
+    color: str = Form("#3498db"),
+    figsize_width: int = Form(10),
+    figsize_height: int = Form(6)
+):
+    """生成基础可视化图表。"""
+    try:
+        df = _load_dataframe_from_session(request)
+    except ValueError as exc:
+        return _redirect_home_with_message(request, str(exc))
+
+    try:
+        # 调用可视化核心服务生成图表
+        chart_path = generate_chart(
+            df=df,
+            chart_type=chart_type,
+            x_col=x_col,
+            y_col=y_col,
+            title=title,
+            color=color,
+            figsize_width=figsize_width,
+            figsize_height=figsize_height
+        )
+
+        message = f"图表生成成功！类型：{chart_type}，X轴：{x_col}，Y轴：{y_col}"
+        context = _build_page_context(request, df, {
+            "chart_path": chart_path,
+            "message": message
+        })
+    except ValueError as exc:
+        context = _build_page_context(request, df, {"error": str(exc)})
+    except Exception as exc:
+        context = _build_page_context(
+            request, df, {"error": f"生成图表失败：{exc}"}
+        )
+
+    return templates.TemplateResponse(request, "visualize.html", context)
