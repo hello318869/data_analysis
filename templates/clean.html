@@ -208,7 +208,12 @@ document.getElementById('clean-form').addEventListener('submit', function(e) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
-    }).then(function() { location.reload(); });
+    }).then(function(res) { return res.text(); })
+      .then(function(html) {
+          document.open();
+          document.write(html);
+          document.close();
+      });
 });
 </script>
 </body>
