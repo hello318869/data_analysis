@@ -1,135 +1,41 @@
-# Byte-compiled / optimized / DLL files
+# Python 缓存
 __pycache__/
 *.py[cod]
-*$py.class
+*.pyo
 
-# C extensions
-*.so
-
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# PyInstaller
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-
-# Translations
-*.mo
-*.pot
-
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-
-# Flask stuff:
-instance/
-.webassets-cache
-
-# Scrapy stuff:
-.scrapy
-
-# Sphinx documentation
-docs/_build/
-
-# PyBuilder
-target/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# IPython
-profile_default/
-ipython_config.py
-
-# pyenv
-.python-version
-
-# pipenv
-Pipfile.lock
-
-# PEP 582
-__pypackages__/
-
-# Celery stuff
-celerybeat-schedule
-celerybeat.pid
-
-# SageMath parsed files
-*.sage.py
-
-# Environments
-.env
-.venv
-env/
+# 虚拟环境
 venv/
+.venv/
+env/
 ENV/
-env.bak/
-venv.bak/
 
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
-
-# IDE
-.vscode/
+# IDE 配置（如果团队不统一，可以保留 .idea/ 排除）
 .idea/
+.vscode/
 *.swp
-*.swo
-*~
-.DS_Store
 
-# Project-specific
-static/uploads/*
-!static/uploads/.gitkeep
-outputs/charts/*
-!outputs/charts/.gitkeep
+# 项目运行时生成的文件夹
+uploads/
+outputs/
+rules/
+
+# 数据文件（大文件或生成的数据）
+*.csv
+*.xlsx
+*.xls
+*.pkl
+mock_data.csv
+data/
+
+# 敏感信息
+.env
+config_local.py   # 如果你们有本地覆盖配置
+
+# 日志和临时文件
+*.log
+*.tmp
+*.pid
+
+# 操作系统
+.DS_Store
+Thumbs.db
