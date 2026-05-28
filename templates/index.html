@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+
+{% block title %}首页 - 交互式数据分析系统{% endblock %}
+
+{% block extra_css %}
+.hero {
+    text-align: center;
+    padding: 60px 20px 48px;
+}
+.hero h1 {
+    font-size: 2.4rem;
+    color: var(--color-gray-900);
+    margin-bottom: 12px;
+    letter-spacing: -0.02em;
+}
+.hero .subtitle {
+    font-size: 1.15rem;
+    color: var(--color-gray-500);
+    max-width: 600px;
+    margin: 0 auto 32px;
+    line-height: 1.7;
+}
+.hero .cta-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 24px;
+    margin-top: 16px;
+}
+.feature-card {
+    background: var(--color-white);
+    border: 1px solid var(--color-gray-200);
+    border-radius: var(--radius-lg);
+    padding: 28px 24px;
+    text-align: center;
+    transition: box-shadow 0.2s, transform 0.2s;
+}
+.feature-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-3px);
+}
+.feature-card .feature-icon {
+    font-size: 2.8rem;
+    margin-bottom: 16px;
+    display: block;
+}
+.feature-card h3 {
+    font-size: 1.15rem;
+    color: var(--color-gray-800);
+    margin-bottom: 8px;
+}
+.feature-card p {
+    font-size: 0.9rem;
+    color: var(--color-gray-500);
+    line-height: 1.6;
+}
+
+.welcome-banner {
+    background: linear-gradient(135deg, var(--color-primary-light), #e0e7ff);
+    border: 1px solid #bfdbfe;
+    border-radius: var(--radius-lg);
+    padding: 24px 28px;
+    margin-bottom: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+.welcome-banner .welcome-text {
+    font-size: 1.05rem;
+    color: var(--color-gray-700);
+}
+.welcome-banner .welcome-text strong {
+    color: var(--color-primary);
+}
+.quick-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+}
+.empty-state .empty-icon {
+    font-size: 4rem;
+    display: block;
+    margin-bottom: 16px;
+}
+.empty-state h3 {
+    font-size: 1.3rem;
+    color: var(--color-gray-700);
+    margin-bottom: 8px;
+}
+.empty-state p {
+    color: var(--color-gray-500);
+    margin-bottom: 24px;
+}
+
+.section-title {
+    font-size: 1.5rem;
+    color: var(--color-gray-800);
+    margin-bottom: 8px;
+}
+.section-desc {
+    color: var(--color-gray-500);
+    margin-bottom: 24px;
+}
+
+@media (max-width: 768px) {
+    .hero {
+        padding: 40px 16px 32px;
+    }
+    .hero h1 {
+        font-size: 1.8rem;
+    }
+    .hero .subtitle {
+        font-size: 1rem;
+    }
+    .features {
+        grid-template-columns: 1fr;
+    }
+}
+{% endblock %}
+
+{% block content %}
+
+<!-- Hero Section -->
+<section class="hero">
+    <h1>📊 交互式数据分析系统</h1>
+    <p class="subtitle">
+        一站式数据科学平台 — 上传数据、清洗整理、可视化探索、机器学习预测，让数据分析变得简单高效
+    </p>
+    <div class="cta-buttons">
+        {% if user %}
+            <a href="/data/upload" class="btn btn-primary btn-lg">上传数据开始分析</a>
+        {% else %}
+            <a href="/auth/register" class="btn btn-primary btn-lg">免费注册</a>
+            <a href="/auth/login" class="btn btn-outline btn-lg">立即登录</a>
+        {% endif %}
+    </div>
+</section>
+
+<!-- Welcome Banner for logged-in users -->
+{% if user %}
+<div class="welcome-banner">
+    <div class="welcome-text">
+        欢迎回来，<strong>{{ user.username }}</strong>！开始你的数据分析之旅吧。
+    </div>
+    <div class="quick-actions">
+        <a href="/data/upload" class="btn btn-sm btn-primary">📤 上传数据</a>
+        <a href="/history" class="btn btn-sm btn-outline">📋 历史记录</a>
+    </div>
+</div>
+{% endif %}
+
+<!-- Feature Cards -->
+<h2 class="section-title">核心功能</h2>
+<p class="section-desc">四大模块助你轻松完成数据分析全流程</p>
+
+<div class="features">
+    <div class="feature-card">
+        <span class="feature-icon">📤</span>
+        <h3>数据上传</h3>
+        <p>支持 CSV、Excel 等多种格式文件上传，自动解析数据结构，展示数据预览和统计摘要</p>
+    </div>
+    <div class="feature-card">
+        <span class="feature-icon">🧹</span>
+        <h3>数据清洗</h3>
+        <p>智能识别缺失值、异常值和重复数据，提供均值/中位数/众数填充、行删除等多种清洗策略</p>
+    </div>
+    <div class="feature-card">
+        <span class="feature-icon">📈</span>
+        <h3>可视化分析</h3>
+        <p>一键生成折线图、柱状图、散点图等多种图表，直观呈现数据分布和趋势关系</p>
+    </div>
+    <div class="feature-card">
+        <span class="feature-icon">🤖</span>
+        <h3>机器学习预测</h3>
+        <p>内置线性回归、决策树等算法，自动训练模型并评估预测效果，支持特征选择和参数调优</p>
+    </div>
+</div>
+
+<!-- Call-to-action for unauthenticated users -->
+{% if not user %}
+<div class="empty-state mt-4">
+    <span class="empty-icon">🔐</span>
+    <h3>立即开始使用</h3>
+    <p>注册账号即可体验完整的数据分析功能，你的数据安全由我们守护</p>
+    <div style="display: flex; gap: 12px; justify-content: center;">
+        <a href="/auth/register" class="btn btn-primary">创建账号</a>
+        <a href="/auth/login" class="btn btn-outline">已有账号？登录</a>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
