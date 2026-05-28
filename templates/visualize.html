@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}数据可视化{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>数据可视化</h2>
+    <hr>
+
+    {% if message %}
+        <div class="alert alert-success">{{ message }}</div>
+    {% endif %}
+
+    {% if error %}
+        <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="/analysis/viz/generate" class="mb-4">
+        <div class="row">
+            <div class="col-md-3">
+                <label>图表类型</label>
+                <select name="chart_type" class="form-select" required>
+                    <option value="scatter">散点图</option>
+                    <option value="line">折线图</option>
+                    <option value="bar">柱状图</option>
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label>X轴字段</label>
+                <select name="x_col" class="form-select" required>
+                    {% for c in columns %}
+                    <option value="{{ c }}">{{ c }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label>Y轴字段</label>
+                <select name="y_col" class="form-select" required>
+                    {% for c in columns %}
+                    <option value="{{ c }}">{{ c }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label>图表标题</label>
+                <input type="text" name="title" class="form-control" value="图表">
+            </div>
+        </div>
+
+        <button class="btn btn-primary mt-3">生成图表</button>
+    </form>
+
+    {% if chart_path %}
+    <div class="card">
+        <div class="card-body">
+            <img src="{{ chart_path }}" class="img-fluid" alt="图表">
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
