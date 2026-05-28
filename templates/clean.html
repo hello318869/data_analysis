@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+{% block title %}数据清洗 - 交互式数据分析系统{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width:1200px;margin:0 auto;padding:24px 16px">
+
+    <!-- 页面标题栏 -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+        <div>
+            <h1 style="font-size:22px;margin:0">🧹 数据清洗</h1>
+            {% if filename %}
+            <span style="font-size:13px;color:var(--color-gray-500)">{{ filename }} — {{ row_count }} 行 × {{ column_count }} 列</span>
+            {% endif %}
+        </div>
+        <div style="display:flex;gap:8px">
+            <a href="/preview" class="btn btn-outline btn-sm">← 返回预览</a>
+        </div>
+    </div>
+
+    <!-- 消息提示 -->
+    {% if error %}
+    <div style="background:var(--color-danger-light);color:var(--color-danger);padding:10px 16px;border-radius:6px;margin-bottom:16px;font-size:14px">{{ error }}</div>
+    {% endif %}
+    {% if message %}
+    <div style="background:var(--color-success-light);color:var(--color-success);padding:10px 16px;border-radius:6px;margin-bottom:16px;font-size:14px">
+        {{ message }}
+        {% if cleaned_count %}(处理了 {{ cleaned_count }} 个单元格){% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Tabs -->
+    <div style="display:flex;border-bottom:2px solid var(--color-gray-200);margin-bottom:20px;gap:0">
+        <button class="clean-tab active" onclick="switchCleanTab(this,'tabReport')" style="padding:10px 20px;border:none;background:none;cursor:pointer;font-size:14px;font-weight:500;color:var(--color-gray-500);border-bottom:2px solid transparent;margin-bottom:-2px;transition:.2s">📊 清洗报告</button>
+        <button class="clean-tab" onclick="switchCleanTab(this,'tabManual')" style="padding:10px 20px;border:none;background:none;cursor:pointer;font-size:14px;font-weight:500;color:var(--color-gray-500);border-bottom:2px solid transparent;margin-bottom:-2px;transition:.2s">🔧 手动清洗</button>
+        <button class="clean-tab" onclick="switchCleanTab(this,'tabAuto')" style="padding:10px 20px;border:none;background:none;cursor:pointer;font-size:14px;font-weight:500;color:var(--color-gray-500);border-bottom:2px solid transparent;margin-bottom:-2px;transition:.2s">⚡ 一键清洗</button>
+        <button class="clean-tab" onclick="switchCleanTab(this,'tabRules')" style="padding:10px 20px;border:none;background:none;cursor:pointer;font-size:14px;font-weight:500;color:var(--color-gray-500);border-bottom:2px solid transparent;margin-bottom:-2px;transition:.2s">📋 规则集</button>
+        <button class="clean-tab" onclick="switchCleanTab(this,'tabPreview')" style="padding:10px 20px;border:none;background:none;cursor:pointer;font-size:14px;font-weight:500;color:var(--color-gray-500);border-bottom:2px solid transparent;margin-bottom:-2px;transition:.2s">👁 数据预览</button>
+    </div>
+
+    <!-- Tab 1: 清洗报告 -->
+    <div id="tabReport" class="clean-panel" style="display:block">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+            <div>
+                <h3 style="font-size:15px;margin-bottom:10px">
+                    缺失值报告
+                    {% if missing_report|length == 0 %}
+                    <span style="background:var(--color-success-light);color:var(--color-success);font-size:11px;padding:2px 8px;border-radius:10px;margin-left:4px">无缺失</span>
+                    {% else %}
+                    <span style="background:var(--color-warning-light);color:var(--color-warning);font-size:11px;padding:2px 8px;border-radius:10px;margin-left:4px">{{ missing_report|length }} 列有缺失</span>
+                    {% endif %}
+                </h3>
+                {% if missing_report %}
+                <table style="width:100%;font-size:13px;border-collapse:collapse">
+                    <tr style="background:var(--color-gray-100)"><th style="padding:8px;text-align:left">列名</th><th style="padding:8px;text-align:left">缺失数</th><th style="padding:8px;text-align:left">%</th><th style="padding:8px;text-align:left">类型</th></tr>
+                    {% for r in missing_report %}
+                    <tr style="border-bottom:1px solid var(--color-gray-200)"><td style="padding:8px"><strong>{{ r.column }}</strong></td><td style="padding:8px">{{ r.missing_count }}</td><td style="padding:8px">{{ r.missing_pct }}%</td><td style="padding:8px;font-family:monospace;font-size:12px">{{ r.dtype }}</td></tr>
+                    {% endfor %}
+                </table>
+                {% endif %}
+            </div>
+            <div>
+                <h3 style="font-size:15px;margin-bottom:10px">
+                    异常值报告 (IQR)
+                    {% if outlier_report|length == 0 %}
+                    <span style="background:var(--color-success-light);color:var(--color-success);font-size:11px;padding:2px 8px;border-radius:10px;margin-left:4px">无异常</span>
+                    {% else %}
+                    <span style="background:var(--color-danger-light);color:var(--color-danger);font-size:11px;padding:2px 8px;border-radius:10px;margin-left:4px">{{ outlier_report|length }} 列有异常</span>
+                    {% endif %}
+                </h3>
+                {% if outlier_report %}
+                <table style="width:100%;font-size:13px;border-collapse:collapse">
+                    <tr style="background:var(--color-gray-100)"><th style="padding:8px;text-align:left">列名</th><th style="padding:8px;text-align:left">异常数</th><th style="padding:8px;text-align:left">下界</th><th style="padding:8px;text-align:left">上界</th></tr>
+                    {% for r in outlier_report %}
+                    <tr style="border-bottom:1px solid var(--color-gray-200)"><td style="padding:8px"><strong>{{ r.column }}</strong></td><td style="padding:8px">{{ r.outlier_count }}</td><td style="padding:8px;font-family:monospace">{{ r.lower_bound }}</td><td style="padding:8px;font-family:monospace">{{ r.upper_bound }}</td></tr>
+                    {% endfor %}
+                </table>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab 2: 手动清洗 -->
+    <div id="tabManual" class="clean-panel" style="display:none">
+        <form id="manualForm" onsubmit="submitManual(event)" style="max-width:600px">
+            <div style="margin-bottom:16px">
+                <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px">选择要清洗的列</label>
+                <div style="display:flex;flex-wrap:wrap;gap:6px">
+                    {% for col in columns %}
+                    <label style="display:flex;align-items:center;gap:4px;font-size:13px;padding:4px 10px;border:1px solid var(--color-gray-300);border-radius:4px;cursor:pointer">
+                        <input type="checkbox" name="clean_columns" value="{{ col }}"><span>{{ col }}</span>
+                    </label>
+                    {% endfor %}
+                    <label style="display:flex;align-items:center;gap:4px;font-size:12px;padding:4px 10px;color:var(--color-gray-400);cursor:pointer" onclick="toggleAllCleanCols()">全选</label>
+                </div>
+            </div>
+            <div style="margin-bottom:16px">
+                <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px">清洗策略</label>
+                <select id="cleanStrategy" name="strategy" onchange="toggleFillVal()" style="width:200px;padding:8px;border:1px solid var(--color-gray-300);border-radius:4px;font-size:13px">
+                    <option value="mean">均值填充 (mean)</option>
+                    <option value="median">中位数填充 (median)</option>
+                    <option value="mode">众数填充 (mode)</option>
+                    <option value="drop">删除含缺失行 (drop)</option>
+                    <option value="custom">自定义值填充 (custom)</option>
+                </select>
+            </div>
+            <div id="fillValWrap" style="display:none;margin-bottom:16px">
+                <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px">自定义填充值</label>
+                <input type="number" id="fillValue" name="fill_value" placeholder="输入填充值" step="any" style="width:200px;padding:8px;border:1px solid var(--color-gray-300);border-radius:4px;font-size:13px">
+            </div>
+            <button type="submit" style="padding:8px 24px;background:var(--color-success);color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer;font-weight:500">执行清洗</button>
+        </form>
+    </div>
+
+    <!-- Tab 3: 一键清洗 -->
+    <div id="tabAuto" class="clean-panel" style="display:none">
+        <p style="font-size:14px;color:var(--color-gray-500);margin-bottom:16px">数值列 → 中位数填充，分类列 → 众数填充，异常值 → IQR 截断</p>
+        <form action="/analysis/clean/auto" method="POST">
+            <button type="submit" style="padding:8px 24px;background:var(--color-primary);color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer;font-weight:500">⚡ 一键自动清洗</button>
+        </form>
+    </div>
+
+    <!-- Tab 4: 规则集 -->
+    <div id="tabRules" class="clean-panel" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+            <div>
+                <h3 style="font-size:15px;margin-bottom:10px">预设规则集</h3>
+                {% for p in presets %}
+                <form action="/analysis/clean/rules/apply" method="POST" style="display:inline;margin-right:6px">
+                    <input type="hidden" name="name" value="{{ p }}">
+                    <button type="submit" style="padding:6px 14px;background:var(--color-gray-100);border:1px solid var(--color-gray-300);border-radius:4px;cursor:pointer;font-size:13px;margin-bottom:4px">{{ p }}</button>
+                </form>
+                {% endfor %}
+
+                <h3 style="font-size:15px;margin:20px 0 10px">已保存规则集</h3>
+                {% if saved_rules %}
+                {% for s in saved_rules %}
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                    <span style="font-size:13px">💾 {{ s }}</span>
+                    <form action="/analysis/clean/rules/apply" method="POST" style="display:inline">
+                        <input type="hidden" name="name" value="{{ s }}">
+                        <button type="submit" style="font-size:12px;padding:2px 8px;background:var(--color-primary);color:#fff;border:none;border-radius:3px;cursor:pointer">应用</button>
+                    </form>
+                    <form action="/analysis/clean/rules/delete" method="POST" style="display:inline">
+                        <input type="hidden" name="name" value="{{ s }}">
+                        <button type="submit" style="font-size:12px;padding:2px 8px;background:var(--color-danger);color:#fff;border:none;border-radius:3px;cursor:pointer" onclick="return confirm('确认删除规则集 {{ s }}?')">删除</button>
+                    </form>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div style="font-size:13px;color:var(--color-gray-400)">暂无已保存规则集</div>
+                {% endif %}
+            </div>
+            <div>
+                <h3 style="font-size:15px;margin-bottom:10px">自定义规则</h3>
+                <div id="customRulesWrap">
+                    <div style="font-size:13px;color:var(--color-gray-400);margin-bottom:8px">点击下方添加规则行</div>
+                </div>
+                <button type="button" onclick="addRuleRow()" style="font-size:13px;padding:4px 12px;background:var(--color-gray-100);border:1px dashed var(--color-gray-400);border-radius:4px;cursor:pointer;margin-bottom:12px">+ 添加规则</button>
+                <br>
+                <button type="button" onclick="applyInlineRule()" style="padding:6px 18px;background:var(--color-primary);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;margin-right:6px">应用此规则</button>
+                <button type="button" onclick="saveRuleSet()" style="padding:6px 18px;background:var(--color-gray-100);border:1px solid var(--color-gray-300);border-radius:4px;cursor:pointer;font-size:13px">💾 保存规则</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab 5: 数据预览 -->
+    <div id="tabPreview" class="clean-panel" style="display:none">
+        <div style="overflow-x:auto;max-height:400px;overflow-y:auto">
+            <table style="width:100%;font-size:13px;border-collapse:collapse">
+                <tr style="background:var(--color-gray-100);position:sticky;top:0">
+                    {% for col in columns %}
+                    <th style="padding:8px;text-align:left;white-space:nowrap">{{ col }}</th>
+                    {% endfor %}
+                </tr>
+                {% for row in rows %}
+                <tr style="border-bottom:1px solid var(--color-gray-200)">
+                    {% for val in row %}
+                    <td style="padding:8px;white-space:nowrap">{% if val is none %}<span style="color:var(--color-gray-400)">NULL</span>{% else %}{{ val }}{% endif %}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script>
+// Tab 切换
+function switchCleanTab(btn, panelId) {
+    document.querySelectorAll('.clean-tab').forEach(t => {
+        t.style.color = 'var(--color-gray-500)';
+        t.style.borderBottomColor = 'transparent';
+        t.classList.remove('active');
+    });
+    document.querySelectorAll('.clean-panel').forEach(p => p.style.display = 'none');
+    btn.style.color = 'var(--color-primary)';
+    btn.style.borderBottomColor = 'var(--color-primary)';
+    btn.classList.add('active');
+    document.getElementById(panelId).style.display = 'block';
+}
+
+// 手动清洗
+function toggleAllCleanCols() {
+    const boxes = document.querySelectorAll('input[name="clean_columns"]');
+    const allChecked = Array.from(boxes).every(c => c.checked);
+    boxes.forEach(c => c.checked = !allChecked);
+}
+
+function toggleFillVal() {
+    document.getElementById('fillValWrap').style.display =
+        document.getElementById('cleanStrategy').value === 'custom' ? 'block' : 'none';
+}
+
+async function submitManual(e) {
+    e.preventDefault();
+    const checks = document.querySelectorAll('input[name="clean_columns"]:checked');
+    const columns = Array.from(checks).map(c => c.value);
+    if (columns.length === 0) { alert('请至少选择一列'); return; }
+
+    const body = {
+        strategy: document.getElementById('cleanStrategy').value,
+        columns: columns,
+        fill_value: null
+    };
+    if (body.strategy === 'custom') {
+        body.fill_value = parseFloat(document.getElementById('fillValue').value) || null;
+    }
+
+    const resp = await fetch('/analysis/clean/execute', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+    });
+    const text = await resp.text();
+    document.documentElement.innerHTML = text;
+}
+
+// 规则集
+let ruleCounter = 0;
+function addRuleRow() {
+    ruleCounter++;
+    const div = document.createElement('div');
+    div.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px;border:1px solid var(--color-gray-200);border-radius:4px;margin-bottom:6px;flex-wrap:wrap';
+    div.innerHTML = `
+        <input type="text" placeholder="列名" style="width:90px;padding:4px 6px;font-size:12px" data-f="column">
+        <select data-f="missing_strategy" style="width:80px;font-size:12px;padding:4px" onchange="this.parentElement.querySelector('[data-f=fill_value]').style.display=this.value==='custom'?'':'none'">
+            <option value="median">中位数</option><option value="mean">均值</option><option value="mode">众数</option>
+            <option value="drop">删除行</option><option value="custom">自定义</option><option value="skip">跳过</option>
+        </select>
+        <input type="number" placeholder="填充值" style="width:70px;padding:4px;font-size:12px;display:none" data-f="fill_value" step="any">
+        <select data-f="outlier_method" style="width:70px;font-size:12px;padding:4px">
+            <option value="iqr">IQR</option><option value="zscore">Z-Score</option><option value="none">不检测</option>
+        </select>
+        <select data-f="outlier_action" style="width:70px;font-size:12px;padding:4px">
+            <option value="clip">截断</option><option value="remove">删除</option><option value="none">不处理</option>
+        </select>
+        <button onclick="this.parentElement.remove()" style="border:none;background:none;cursor:pointer;color:var(--color-danger);font-size:16px">&times;</button>
+    `;
+    document.getElementById('customRulesWrap').appendChild(div);
+    const hint = document.querySelector('#customRulesWrap .hint');
+    if (hint) hint.remove();
+}
+
+function collectRules() {
+    const rules = [];
+    document.querySelectorAll('#customRulesWrap > div').forEach(row => {
+        const get = f => row.querySelector(`[data-f="${f}"]`).value;
+        const strat = get('missing_strategy');
+        const rule = { column: get('column'), missing_strategy: strat, outlier_method: get('outlier_method'), outlier_action: get('outlier_action') };
+        if (strat === 'custom') rule.fill_value = parseFloat(get('fill_value')) || null;
+        if (rule.column.trim()) rules.push(rule);
+    });
+    return rules;
+}
+
+async function applyInlineRule() {
+    const rules = collectRules();
+    if (rules.length === 0) { alert('请至少添加一条规则'); return; }
+    const resp = await fetch('/analysis/clean/rules/apply', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ ruleset: { name: 'custom', description: '', rules } })
+    });
+    const text = await resp.text();
+    document.documentElement.innerHTML = text;
+}
+
+async function saveRuleSet() {
+    const rules = collectRules();
+    if (rules.length === 0) { alert('请至少添加一条规则'); return; }
+    const name = prompt('请输入规则集名称:');
+    if (!name) return;
+    const resp = await fetch('/analysis/clean/rules/save', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ name, description: '', rules })
+    });
+    const text = await resp.text();
+    document.documentElement.innerHTML = text;
+}
+</script>
+
+<style>
+.clean-tab.active { color: var(--color-primary) !important; border-bottom-color: var(--color-primary) !important; }
+.clean-tab:hover { color: var(--color-gray-700); }
+</style>
+{% endblock %}
