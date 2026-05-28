@@ -1,1 +1,95 @@
+{% extends "base.html" %}
 
+{% block title %}数据可视化{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">数据可视化</h1>
+    
+    <!-- 消息提示 -->
+    {% if message %}
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+    
+    <!-- 错误提示 -->
+    {% if error %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        {{ error }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+    
+    <!-- 图表生成表单 -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>生成图表</h5>
+        </div>
+        <div class="card-body">
+            <form method="post" action="/analysis/viz/generate">
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label for="chart_type" class="form-label">图表类型</label>
+                        <select class="form-select" id="chart_type" name="chart_type" required>
+                            <option value="scatter">散点图（相关性分析）</option>
+                            <option value="line">折线图（趋势变化）</option>
+                            <option value="bar">柱状图（分类对比）</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="x_col" class="form-label">X轴</label>
+                        <select class="form-select" id="x_col" name="x_col" required>
+                            {% for col in columns %}
+                            <option value="{{ col }}">{{ col }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="y_col" class="form-label">Y轴</label>
+                        <select class="form-select" id="y_col" name="y_col" required>
+                            {% for col in columns %}
+                            <option value="{{ col }}">{{ col }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label for="title" class="form-label">图表标题</label>
+                        <input type="text" class="form-control" id="title" name="title" placeholder="自动生成">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="color" class="form-label">颜色</label>
+                        <input type="color" class="form-control form-control-color" id="color" name="color" value="#3498db">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="figsize_width" class="form-label">宽度</label>
+                        <input type="number" class="form-control" id="figsize_width" name="figsize_width" value="10" min="5" max="20">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="figsize_height" class="form-label">高度</label>
+                        <input type="number" class="form-control" id="figsize_height" name="figsize_height" value="6" min="3" max="15">
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">生成图表</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- 显示生成的图表 -->
+    {% if chart_path %}
+    <div class="card">
+        <div class="card-header">
+            <h5>生成结果</h5>
+        </div>
+        <div class="card-body text-center">
+            <img src="{{ chart_path }}" class="img-fluid rounded shadow" alt="生成的图表">
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
