@@ -1,41 +1,135 @@
-# Python 缓存
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
-*.pyo
+*$py.class
 
-# 虚拟环境
-venv/
-.venv/
-env/
-ENV/
+# C extensions
+*.so
 
-# IDE 配置（如果团队不统一，可以保留 .idea/ 排除）
-.idea/
-.vscode/
-*.swp
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# 项目运行时生成的文件夹
-uploads/
-outputs/
-rules/
+# PyInstaller
+*.manifest
+*.spec
 
-# 数据文件（大文件或生成的数据）
-*.csv
-*.xlsx
-*.xls
-*.pkl
-mock_data.csv
-data/
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
 
-# 敏感信息
-.env
-config_local.py   # 如果你们有本地覆盖配置
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
 
-# 日志和临时文件
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
 *.log
-*.tmp
-*.pid
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
 
-# 操作系统
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 .DS_Store
-Thumbs.db
+
+# Project-specific
+static/uploads/*
+!static/uploads/.gitkeep
+outputs/charts/*
+!outputs/charts/.gitkeep

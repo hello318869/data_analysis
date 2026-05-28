@@ -1,0 +1,434 @@
+{% extends "base.html" %}
+
+{% block title %}算法分析{% endblock %}
+
+{% block extra_css %}
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+.page-header h2 {
+    font-size: 1.6rem;
+    color: var(--color-gray-900);
+    margin-bottom: 6px;
+}
+.page-header p {
+    color: var(--color-gray-500);
+}
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+}
+.summary-item,
+.metric-card {
+    background: var(--color-white);
+    border: 1px solid var(--color-gray-200);
+    border-radius: var(--radius-md);
+    padding: 16px;
+}
+.summary-label,
+.metric-label {
+    color: var(--color-gray-500);
+    font-size: 0.82rem;
+    margin-bottom: 4px;
+}
+.summary-value,
+.metric-value {
+    color: var(--color-gray-900);
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+.analysis-layout {
+    display: grid;
+    grid-template-columns: minmax(280px, 380px) 1fr;
+    gap: 24px;
+    align-items: start;
+}
+.form-stack {
+    display: grid;
+    gap: 16px;
+}
+.field-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+.field-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 9px;
+    border-radius: 999px;
+    background: var(--color-primary-light);
+    color: var(--color-primary);
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+.select-help {
+    color: var(--color-gray-500);
+    font-size: 0.82rem;
+    margin-top: 6px;
+}
+.metric-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+}
+.result-section {
+    margin-top: 24px;
+}
+.result-section h3 {
+    color: var(--color-gray-800);
+    font-size: 1.08rem;
+    margin-bottom: 12px;
+}
+.chart-preview {
+    width: 100%;
+    max-width: 720px;
+    border: 1px solid var(--color-gray-200);
+    border-radius: var(--radius-md);
+    background: var(--color-white);
+}
+.best-row {
+    background: var(--color-success-light);
+}
+.best-badge {
+    display: inline-flex;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: var(--color-success);
+    color: var(--color-white);
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin-left: 8px;
+}
+.empty-state-panel {
+    text-align: center;
+    padding: 48px 20px;
+}
+.empty-state-panel h3 {
+    color: var(--color-gray-800);
+    margin-bottom: 10px;
+}
+.empty-state-panel p {
+    color: var(--color-gray-500);
+    margin-bottom: 20px;
+}
+@media (max-width: 900px) {
+    .analysis-layout {
+        grid-template-columns: 1fr;
+    }
+}
+{% endblock %}
+
+{% block content %}
+{% set available_columns = columns | default([]) %}
+{% set available_numeric_columns = numeric_columns | default([]) %}
+
+<div class="page-header">
+    <div>
+        <h2>算法分析</h2>
+        <p>线性回归训练、预测结果查看，以及 LinearRegression / Ridge / Lasso 对比。</p>
+    </div>
+    <a href="/" class="btn btn-outline">返回首页</a>
+</div>
+
+{% if not available_columns %}
+<div class="card">
+    <div class="card-body empty-state-panel">
+        <h3>请先上传数据文件</h3>
+        <p>算法分析需要先从 session 中读取数据表，然后才能选择特征列和目标列。</p>
+        <a href="/" class="btn btn-primary">返回首页</a>
+    </div>
+</div>
+{% else %}
+<div class="summary-grid">
+    <div class="summary-item">
+        <div class="summary-label">当前文件名</div>
+        <div class="summary-value">{{ filename if filename else '未命名数据集' }}</div>
+    </div>
+    <div class="summary-item">
+        <div class="summary-label">可用字段数量</div>
+        <div class="summary-value">{{ available_columns | length }}</div>
+    </div>
+    <div class="summary-item">
+        <div class="summary-label">数值字段数量</div>
+        <div class="summary-value">{{ available_numeric_columns | length }}</div>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header">数值字段列表</div>
+    <div class="card-body">
+        {% if available_numeric_columns %}
+        <div class="field-tags">
+            {% for column in available_numeric_columns %}
+            <span class="field-tag">{{ column }}</span>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p>当前数据集中没有可用于回归分析的数值字段。</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="analysis-layout">
+    <div class="form-stack">
+        <div class="card">
+            <div class="card-header">线性回归分析</div>
+            <div class="card-body">
+                <form class="analysis-json-form" data-action="/analysis/regression">
+                    <div class="form-group">
+                        <label for="regression-features">features 特征列</label>
+                        <select id="regression-features" name="features" multiple size="6" required>
+                            {% for column in available_numeric_columns %}
+                            <option value="{{ column }}" {% if features is defined and column in features %}selected{% endif %}>
+                                {{ column }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="select-help">可多选，建议选择至少 1 个特征列。</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="regression-target">target 目标列</label>
+                        <select id="regression-target" name="target" required>
+                            <option value="">请选择目标列</option>
+                            {% for column in available_numeric_columns %}
+                            <option value="{{ column }}" {% if target is defined and column == target %}selected{% endif %}>
+                                {{ column }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">训练线性回归</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">算法对比</div>
+            <div class="card-body">
+                <form class="analysis-json-form" data-action="/analysis/compare">
+                    <div class="form-group">
+                        <label for="compare-features">features 特征列</label>
+                        <select id="compare-features" name="features" multiple size="6" required>
+                            {% for column in available_numeric_columns %}
+                            <option value="{{ column }}" {% if features is defined and column in features %}selected{% endif %}>
+                                {{ column }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="select-help">使用同一组字段对比 LinearRegression、Ridge、Lasso。</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="compare-target">target 目标列</label>
+                        <select id="compare-target" name="target" required>
+                            <option value="">请选择目标列</option>
+                            {% for column in available_numeric_columns %}
+                            <option value="{{ column }}" {% if target is defined and column == target %}selected{% endif %}>
+                                {{ column }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-outline btn-block">运行算法对比</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div>
+        {% if r2_score is defined %}
+        <div class="card">
+            <div class="card-header">分析结果</div>
+            <div class="card-body">
+                <div class="metric-grid">
+                    <div class="metric-card">
+                        <div class="metric-label">R²</div>
+                        <div class="metric-value">{{ "%.4f"|format(r2_score) }}</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">MSE</div>
+                        <div class="metric-value">{{ "%.2f"|format(mse) }}</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">MAE</div>
+                        <div class="metric-value">{{ "%.2f"|format(mae) }}</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">训练集 / 测试集</div>
+                        <div class="metric-value">{{ train_size }} / {{ test_size }}</div>
+                    </div>
+                </div>
+
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <div class="summary-label">特征列</div>
+                        <div>{{ features | join(", ") }}</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">目标列</div>
+                        <div>{{ target }}</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">截距 intercept</div>
+                        <div>{{ "%.6f"|format(intercept) }}</div>
+                    </div>
+                </div>
+
+                {% if scatter_chart_path is defined and scatter_chart_path %}
+                <div class="result-section">
+                    <h3>预测值 vs 真实值</h3>
+                    <img class="chart-preview" src="{{ scatter_chart_path }}" alt="预测值 vs 真实值">
+                </div>
+                {% endif %}
+
+                {% if coefficients is defined %}
+                <div class="result-section">
+                    <h3>回归系数</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>特征列</th>
+                                    <th>系数</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for name, value in coefficients.items() %}
+                                <tr>
+                                    <td>{{ name }}</td>
+                                    <td>{{ "%.6f"|format(value) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if comparison is defined %}
+                <div class="result-section">
+                    <h3>算法对比</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>algorithm</th>
+                                    <th>r2_score</th>
+                                    <th>mse</th>
+                                    <th>mae</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in comparison %}
+                                <tr class="{% if item.algorithm == best_algorithm %}best-row{% endif %}">
+                                    <td>
+                                        {{ item.algorithm }}
+                                        {% if item.algorithm == best_algorithm %}
+                                        <span class="best-badge">best</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ "%.4f"|format(item.r2_score) }}</td>
+                                    <td>{{ "%.2f"|format(item.mse) }}</td>
+                                    <td>{{ "%.2f"|format(item.mae) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if predictions is defined %}
+                <div class="result-section">
+                    <h3>预测结果表</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    {% for feature in features %}
+                                    <th>{{ feature }}</th>
+                                    {% endfor %}
+                                    <th>actual</th>
+                                    <th>predicted</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in predictions[:20] %}
+                                <tr>
+                                    {% for feature in features %}
+                                    <td>{{ row[feature] }}</td>
+                                    {% endfor %}
+                                    <td>{{ "%.2f"|format(row.actual) }}</td>
+                                    <td>{{ "%.2f"|format(row.predicted) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% if predictions | length > 20 %}
+                    <p class="select-help">仅展示前 20 行预测结果。</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <div class="card">
+            <div class="card-body empty-state-panel">
+                <h3>等待分析</h3>
+                <p>请选择特征列和目标列，运行线性回归或算法对比后，结果会显示在这里。</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function bindAnalysisForms() {
+    document.querySelectorAll(".analysis-json-form").forEach((form) => {
+        form.addEventListener("submit", async (event) => {
+            event.preventDefault();
+
+            const featureSelect = form.querySelector("select[name='features']");
+            const targetSelect = form.querySelector("select[name='target']");
+            const features = Array.from(featureSelect.selectedOptions).map((option) => option.value);
+            const target = targetSelect.value;
+
+            const response = await fetch(form.dataset.action, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({features: features, target: target})
+            });
+
+            const html = await response.text();
+            const parser = new DOMParser();
+            const nextDocument = parser.parseFromString(html, "text/html");
+            const currentMain = document.querySelector(".main-content");
+            const nextMain = nextDocument.querySelector(".main-content");
+
+            if (currentMain && nextMain) {
+                document.title = nextDocument.title;
+                currentMain.innerHTML = nextMain.innerHTML;
+                bindAnalysisForms();
+            } else {
+                window.location.reload();
+            }
+        });
+    });
+}
+
+bindAnalysisForms();
+</script>
+{% endblock %}
