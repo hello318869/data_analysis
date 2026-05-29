@@ -5,7 +5,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "mysql+pymysql://root:root@localhost:3306/data_analysis_db",
+    "mysql+pymysql://root:root@127.0.0.1:3306/data_analysis_db",
 )
 
 UPLOAD_DIR = os.path.join(BASE_DIR, "static", "uploads")
