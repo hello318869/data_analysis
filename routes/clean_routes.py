@@ -3,8 +3,6 @@
 """
 from __future__ import annotations
 
-import json
-from io import StringIO
 from typing import Any
 
 import pandas as pd
@@ -18,6 +16,7 @@ from services.clean_service import (
     list_saved_rules, load_ruleset, save_ruleset, delete_ruleset,
     validate_ruleset, apply_ruleset,
 )
+from services.data_service import load_dataframe_from_session, save_dataframe_to_session
 
 
 router = APIRouter()
@@ -33,33 +32,17 @@ async def _parse_body(request: Request) -> dict[str, Any]:
     return {k: v for k, v in form.items()}
 
 
-def _load_dataframe_from_session(request: Request) -> pd.DataFrame:
-    """从 session["df_json"] 还原 DataFrame。"""
-    df_json = request.session.get("df_json")
-    if not df_json:
+def _load_dataframe(request: Request) -> pd.DataFrame:
+    """从 session 加载 DataFrame，无数据时抛出 ValueError。"""
+    df = load_dataframe_from_session(request)
+    if df is None:
         raise ValueError("请先上传数据文件")
+    return df
 
-    if isinstance(df_json, str):
-        try:
-            parsed = json.loads(df_json)
-        except json.JSONDecodeError:
-            return pd.read_json(StringIO(df_json), orient="split")
-    else:
-        parsed = df_json
 
-    if isinstance(parsed, dict) and {"columns", "data"}.issubset(parsed):
-        return pd.DataFrame(parsed["data"], columns=parsed["columns"], index=parsed.get("index"))
-
-    if isinstance(parsed, dict) and isinstance(parsed.get("data"), list):
-        return pd.DataFrame(parsed["data"])
-
-    if isinstance(parsed, list):
-        return pd.DataFrame(parsed)
-
-    if isinstance(parsed, dict):
-        return pd.DataFrame(parsed)
-
-    raise ValueError("无法读取 session 中的数据，请重新上传数据文件")
+def _save_dataframe(request: Request, df: pd.DataFrame) -> None:
+    """将清洗后的 DataFrame 写回 session。"""
+    save_dataframe_to_session(request, df, _get_filename(request) or "cleaned_data.csv")
 
 
 def _get_filename(request: Request) -> str | None:
@@ -110,7 +93,7 @@ def _clean_page_context(request: Request, df: pd.DataFrame, extra: dict[str, Any
 async def clean_page(request: Request):
     """GET /analysis/clean — 清洗前报告页面。"""
     try:
-        df = _load_dataframe_from_session(request)
+        df = _load_dataframe(request)
     except ValueError as exc:
         return _redirect_home_with_message(request, str(exc))
 
@@ -121,7 +104,7 @@ async def clean_page(request: Request):
 async def clean_execute(request: Request):
     """POST /analysis/clean/execute — 按策略清洗指定列。"""
     try:
-        df = _load_dataframe_from_session(request)
+        df = _load_dataframe(request)
     except ValueError as exc:
         return _redirect_home_with_message(request, str(exc))
 
@@ -152,7 +135,7 @@ async def clean_execute(request: Request):
     df_cleaned, cleaned_count, messages = execute_clean(df, strategy, columns, fill_value)
     df_cleaned = df_cleaned.reset_index(drop=True)
 
-    request.session["df_json"] = df_cleaned.to_json(orient="split")
+    _save_dataframe(request, df_cleaned)
 
     return templates.TemplateResponse(
         request, "clean.html",
@@ -167,14 +150,14 @@ async def clean_execute(request: Request):
 async def clean_auto(request: Request):
     """POST /analysis/clean/auto — 一键自动清洗。"""
     try:
-        df = _load_dataframe_from_session(request)
+        df = _load_dataframe(request)
     except ValueError as exc:
         return _redirect_home_with_message(request, str(exc))
 
     df_cleaned, cleaned_count, messages = auto_clean(df)
     df_cleaned = df_cleaned.reset_index(drop=True)
 
-    request.session["df_json"] = df_cleaned.to_json(orient="split")
+    _save_dataframe(request, df_cleaned)
 
     return templates.TemplateResponse(
         request, "clean.html",
@@ -189,7 +172,7 @@ async def clean_auto(request: Request):
 async def clean_rules_list(request: Request):
     """GET /analysis/clean/rules — 规则集列表页面。"""
     try:
-        df = _load_dataframe_from_session(request)
+        df = _load_dataframe(request)
     except ValueError as exc:
         return _redirect_home_with_message(request, str(exc))
 
@@ -203,7 +186,7 @@ async def clean_rules_list(request: Request):
 async def clean_rules_apply(request: Request):
     """POST /analysis/clean/rules/apply — 按规则集执行清洗。"""
     try:
-        df = _load_dataframe_from_session(request)
+        df = _load_dataframe(request)
     except ValueError as exc:
         return _redirect_home_with_message(request, str(exc))
 
@@ -241,7 +224,7 @@ async def clean_rules_apply(request: Request):
     df_cleaned, cleaned_count, messages = apply_ruleset(df, ruleset)
     df_cleaned = df_cleaned.reset_index(drop=True)
 
-    request.session["df_json"] = df_cleaned.to_json(orient="split")
+    _save_dataframe(request, df_cleaned)
 
     return templates.TemplateResponse(
         request, "clean.html",
@@ -256,7 +239,7 @@ async def clean_rules_apply(request: Request):
 async def clean_rules_save(request: Request):
     """POST /analysis/clean/rules/save — 保存自定义规则集。"""
     try:
-        df = _load_dataframe_from_session(request)
+        df = _load_dataframe(request)
     except ValueError as exc:
         return _redirect_home_with_message(request, str(exc))
 
@@ -296,7 +279,7 @@ async def clean_rules_save(request: Request):
 async def clean_rules_delete(request: Request):
     """POST /analysis/clean/rules/delete — 删除已保存的规则集。"""
     try:
-        df = _load_dataframe_from_session(request)
+        df = _load_dataframe(request)
     except ValueError as exc:
         return _redirect_home_with_message(request, str(exc))
 
