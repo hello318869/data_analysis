@@ -11,6 +11,7 @@ from services.data_service import (
     generate_unique_filename,
     save_uploaded_file,
     save_dataframe_to_session,
+    clear_dataframe_from_session,
     load_dataframe_from_session,
     save_dataset_record,
     load_sample_data,
@@ -89,7 +90,8 @@ async def preview_page(request: Request):
 @router.post("/delete")
 async def delete_data(request: Request):
     """清除当前 session 中的数据，返回首页。"""
-    for key in ("df_json", "filename", "current_dataset_id", "last_analysis"):
+    clear_dataframe_from_session(request)
+    for key in ("current_dataset_id", "last_analysis"):
         request.session.pop(key, None)
 
     return RedirectResponse(url="/", status_code=303)

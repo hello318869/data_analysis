@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import io
+import json
 import os
+import re
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -11,11 +13,21 @@ import pandas as pd
 from fastapi import Request, UploadFile
 from sqlalchemy.orm import Session
 
-from config import MAX_UPLOAD_SIZE_MB, UPLOAD_DIR, SAMPLE_DATA
+from config import MAX_UPLOAD_SIZE_MB, UPLOAD_DIR, SAMPLE_DATA, SESSION_DATA_DIR
 from models.analysis_record import Dataset
 
 ALLOWED_EXTENSIONS = {".csv", ".xlsx", ".xls"}
 MAX_SIZE_BYTES = MAX_UPLOAD_SIZE_MB * 1024 * 1024
+SESSION_DATA_KEY = "df_store_id"
+CSV_ENCODINGS = (
+    "utf-8-sig",
+    "utf-8",
+    "gb18030",
+    "gbk",
+    "big5",
+    "cp1252",
+    "latin1",
+)
 
 
 def validate_file(file: UploadFile) -> str:
@@ -52,18 +64,38 @@ def read_file_to_dataframe(file_bytes: bytes, filename: str) -> pd.DataFrame:
 
 
 def _read_csv_with_encoding_detection(file_bytes: bytes) -> pd.DataFrame:
-    """UTF-8 → GBK 两级回退读取 CSV。"""
-    try:
-        return pd.read_csv(io.BytesIO(file_bytes), encoding="utf-8")
-    except UnicodeDecodeError:
-        pass
+    """Try common CSV encodings used by exported spreadsheets."""
+    candidates: list[tuple[int, int, pd.DataFrame]] = []
+    last_error: Exception | None = None
 
-    try:
-        return pd.read_csv(io.BytesIO(file_bytes), encoding="gbk")
-    except UnicodeDecodeError:
-        pass
+    for index, encoding in enumerate(CSV_ENCODINGS):
+        try:
+            text = file_bytes.decode(encoding)
+            df = pd.read_csv(io.StringIO(text))
+        except UnicodeDecodeError as exc:
+            last_error = exc
+            continue
+        except pd.errors.ParserError as exc:
+            last_error = exc
+            continue
 
-    raise ValueError("无法识别文件编码，请尝试将文件转换为 UTF-8 格式后重新上传")
+        candidates.append((_encoding_quality_score(text), index, df))
+
+    if candidates:
+        candidates.sort(key=lambda item: (item[0], item[1]))
+        return candidates[0][2]
+
+    raise ValueError("CSV 文件解析失败，请检查文件编码或分隔符") from last_error
+
+
+def _encoding_quality_score(text: str) -> int:
+    """Score common mojibake patterns lower is better."""
+    sample = text[:20000]
+    score = sample.count("\ufffd") * 100
+    score += len(re.findall(r"[A-Za-z][\u4e00-\u9fff][A-Za-z]", sample)) * 50
+    score += sum(1 for ch in sample if ord(ch) < 32 and ch not in "\r\n\t") * 20
+    score += sum(sample.count(ch) for ch in ("Ã", "Â", "â€", "Ð", "Ñ")) * 5
+    return score
 
 
 def generate_unique_filename(original_filename: str) -> str:
@@ -83,20 +115,99 @@ def save_uploaded_file(file_bytes: bytes, filename: str) -> str:
     return file_path
 
 
+def _session_data_path(store_id: str) -> str:
+    """Return the on-disk path for a stored session dataframe."""
+    uuid.UUID(store_id)
+    return os.path.join(SESSION_DATA_DIR, f"{store_id}.json")
+
+
+def _delete_stored_dataframe(store_id: str | None) -> None:
+    if not store_id:
+        return
+
+    try:
+        path = _session_data_path(store_id)
+    except (TypeError, ValueError):
+        return
+
+    try:
+        if os.path.isfile(path):
+            os.remove(path)
+    except OSError:
+        pass
+
+
+def _dataframe_from_json(df_json: str) -> pd.DataFrame:
+    """Restore dataframes saved by current and older session formats."""
+    try:
+        parsed = json.loads(df_json)
+    except json.JSONDecodeError:
+        return pd.read_json(io.StringIO(df_json))
+
+    if isinstance(parsed, dict) and {"columns", "data"}.issubset(parsed):
+        return pd.DataFrame(
+            parsed["data"],
+            columns=parsed["columns"],
+            index=parsed.get("index"),
+        )
+
+    if isinstance(parsed, dict) and isinstance(parsed.get("data"), list):
+        return pd.DataFrame(parsed["data"])
+
+    if isinstance(parsed, list):
+        return pd.DataFrame(parsed)
+
+    if isinstance(parsed, dict):
+        return pd.DataFrame(parsed)
+
+    raise ValueError("无法读取数据，请重新上传数据文件")
+
+
 def save_dataframe_to_session(
     request: Request, df: pd.DataFrame, filename: str
 ) -> None:
-    """将 DataFrame 以 orient="split" 格式存入 session。"""
-    request.session["df_json"] = df.to_json(orient="split")
+    """Save a DataFrame server-side and keep only a small key in the session."""
+    old_store_id = request.session.get(SESSION_DATA_KEY)
+    store_id = uuid.uuid4().hex
+    path = _session_data_path(store_id)
+
+    os.makedirs(SESSION_DATA_DIR, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(df.to_json(orient="split", force_ascii=False))
+
+    _delete_stored_dataframe(old_store_id)
+    request.session[SESSION_DATA_KEY] = store_id
+    request.session.pop("df_json", None)
     request.session["filename"] = filename
 
 
 def load_dataframe_from_session(request: Request) -> Optional[pd.DataFrame]:
     """从 session 恢复 DataFrame。无数据时返回 None。"""
+    store_id = request.session.get(SESSION_DATA_KEY)
+    if store_id:
+        try:
+            path = _session_data_path(store_id)
+        except (TypeError, ValueError):
+            request.session.pop(SESSION_DATA_KEY, None)
+            return None
+
+        if os.path.isfile(path):
+            with open(path, "r", encoding="utf-8") as f:
+                return _dataframe_from_json(f.read())
+
+        request.session.pop(SESSION_DATA_KEY, None)
+
     df_json = request.session.get("df_json")
     if not df_json:
         return None
-    return pd.read_json(io.StringIO(df_json), orient="split")
+    return _dataframe_from_json(df_json)
+
+
+def clear_dataframe_from_session(request: Request) -> None:
+    """Clear current dataframe data and remove its server-side cache file."""
+    _delete_stored_dataframe(request.session.get(SESSION_DATA_KEY))
+    for key in (SESSION_DATA_KEY, "df_json", "filename"):
+        request.session.pop(key, None)
 
 
 def save_dataset_record(

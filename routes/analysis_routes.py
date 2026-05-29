@@ -14,6 +14,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from models import get_db
 from models.analysis_record import AnalysisRecord
 from schemas.analysis import AnalysisParams
+from services.data_service import load_dataframe_from_session
 from services.ml_service import compare_regression_models, run_linear_regression
 
 
@@ -22,7 +23,11 @@ templates = None  # Will be set by main.py
 
 
 def _load_dataframe_from_session(request: Request) -> pd.DataFrame:
-    """从 session["df_json"] 还原 DataFrame。"""
+    """从当前 session 还原 DataFrame。"""
+    df = load_dataframe_from_session(request)
+    if df is not None:
+        return df
+
     df_json = request.session.get("df_json")
     if not df_json:
         raise ValueError("请先上传数据文件")

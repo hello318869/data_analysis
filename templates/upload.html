@@ -8,13 +8,21 @@
     margin: 0 auto;
 }
 .upload-zone {
+    position: relative;
+    display: flex;
+    width: 100%;
+    min-height: 260px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     border: 2px dashed var(--color-gray-300);
     border-radius: var(--radius-lg);
-    padding: 48px 24px;
+    padding: 40px 24px;
     text-align: center;
     background-color: var(--color-white);
     transition: border-color 0.2s, background-color 0.2s;
     cursor: pointer;
+    overflow: hidden;
 }
 .upload-zone:hover,
 .upload-zone.dragover {
@@ -25,19 +33,28 @@
     font-size: 3rem;
     display: block;
     margin-bottom: 12px;
+    pointer-events: none;
 }
 .upload-zone .upload-text {
     font-size: 1.1rem;
     color: var(--color-gray-700);
     font-weight: 600;
     margin-bottom: 6px;
+    pointer-events: none;
 }
 .upload-zone .upload-hint {
     font-size: 0.85rem;
     color: var(--color-gray-500);
+    pointer-events: none;
 }
 .upload-zone input[type="file"] {
-    display: none;
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
 }
 .file-info {
     display: none;
@@ -69,6 +86,13 @@
     display: flex;
     gap: 12px;
     justify-content: center;
+}
+#upload-btn:disabled {
+    background-color: var(--color-gray-300);
+    color: var(--color-gray-500);
+    cursor: wait;
+    transform: none;
+    box-shadow: none;
 }
 .divider-section {
     display: flex;
@@ -115,7 +139,7 @@
                 </div>
 
                 <div class="upload-actions">
-                    <button type="submit" class="btn btn-primary" id="upload-btn" disabled>上传文件</button>
+                    <button type="submit" class="btn btn-primary" id="upload-btn">选择文件</button>
                 </div>
             </form>
         </div>
@@ -141,14 +165,19 @@ const fileInfo = document.getElementById("file-info");
 const fileName = document.getElementById("file-name");
 const fileSize = document.getElementById("file-size");
 const uploadBtn = document.getElementById("upload-btn");
+const uploadForm = document.getElementById("upload-form");
+
+function setSelectedFile(file) {
+    fileName.textContent = file.name;
+    fileSize.textContent = formatSize(file.size);
+    fileInfo.classList.add("visible");
+    uploadBtn.disabled = false;
+    uploadBtn.textContent = "上传文件";
+}
 
 fileInput.addEventListener("change", function () {
     if (this.files.length > 0) {
-        const file = this.files[0];
-        fileName.textContent = file.name;
-        fileSize.textContent = formatSize(file.size);
-        fileInfo.classList.add("visible");
-        uploadBtn.disabled = false;
+        setSelectedFile(this.files[0]);
     }
 });
 
@@ -166,8 +195,18 @@ uploadZone.addEventListener("drop", function (e) {
     this.classList.remove("dragover");
     if (e.dataTransfer.files.length > 0) {
         fileInput.files = e.dataTransfer.files;
-        fileInput.dispatchEvent(new Event("change"));
+        setSelectedFile(e.dataTransfer.files[0]);
     }
+});
+
+uploadForm.addEventListener("submit", function (e) {
+    if (fileInput.files.length === 0) {
+        e.preventDefault();
+        fileInput.click();
+        return;
+    }
+    uploadBtn.disabled = true;
+    uploadBtn.textContent = "上传中...";
 });
 
 function formatSize(bytes) {
