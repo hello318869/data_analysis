@@ -13,7 +13,7 @@
             {% endif %}
         </div>
         <div style="display:flex;gap:8px">
-            <a href="/preview" class="btn btn-outline btn-sm">← 返回预览</a>
+            <a href="/data/preview" class="btn btn-outline btn-sm">← 返回预览</a>
         </div>
     </div>
 
@@ -114,7 +114,7 @@
     <!-- Tab 3: 一键清洗 -->
     <div id="tabAuto" class="clean-panel" style="display:none">
         <p style="font-size:14px;color:var(--color-gray-500);margin-bottom:16px">数值列 → 中位数填充，分类列 → 众数填充，异常值 → IQR 截断</p>
-        <form action="/analysis/clean/auto" method="POST">
+        <form action="/clean/auto" method="POST">
             <button type="submit" style="padding:8px 24px;background:var(--color-primary);color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer;font-weight:500">⚡ 一键自动清洗</button>
         </form>
     </div>
@@ -125,7 +125,7 @@
             <div>
                 <h3 style="font-size:15px;margin-bottom:10px">预设规则集</h3>
                 {% for p in presets %}
-                <form action="/analysis/clean/rules/apply" method="POST" style="display:inline;margin-right:6px">
+                <form action="/clean/rules/apply" method="POST" style="display:inline;margin-right:6px">
                     <input type="hidden" name="name" value="{{ p }}">
                     <button type="submit" style="padding:6px 14px;background:var(--color-gray-100);border:1px solid var(--color-gray-300);border-radius:4px;cursor:pointer;font-size:13px;margin-bottom:4px">{{ p }}</button>
                 </form>
@@ -136,11 +136,11 @@
                 {% for s in saved_rules %}
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
                     <span style="font-size:13px">💾 {{ s }}</span>
-                    <form action="/analysis/clean/rules/apply" method="POST" style="display:inline">
+                    <form action="/clean/rules/apply" method="POST" style="display:inline">
                         <input type="hidden" name="name" value="{{ s }}">
                         <button type="submit" style="font-size:12px;padding:2px 8px;background:var(--color-primary);color:#fff;border:none;border-radius:3px;cursor:pointer">应用</button>
                     </form>
-                    <form action="/analysis/clean/rules/delete" method="POST" style="display:inline">
+                    <form action="/clean/rules/delete" method="POST" style="display:inline">
                         <input type="hidden" name="name" value="{{ s }}">
                         <button type="submit" style="font-size:12px;padding:2px 8px;background:var(--color-danger);color:#fff;border:none;border-radius:3px;cursor:pointer" onclick="return confirm('确认删除规则集 {{ s }}?')">删除</button>
                     </form>
@@ -227,7 +227,7 @@ async function submitManual(e) {
         body.fill_value = parseFloat(document.getElementById('fillValue').value) || null;
     }
 
-    const resp = await fetch('/analysis/clean/execute', {
+    const resp = await fetch('/clean/execute', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(body)
@@ -277,7 +277,7 @@ function collectRules() {
 async function applyInlineRule() {
     const rules = collectRules();
     if (rules.length === 0) { alert('请至少添加一条规则'); return; }
-    const resp = await fetch('/analysis/clean/rules/apply', {
+    const resp = await fetch('/clean/rules/apply', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ ruleset: { name: 'custom', description: '', rules } })
@@ -291,7 +291,7 @@ async function saveRuleSet() {
     if (rules.length === 0) { alert('请至少添加一条规则'); return; }
     const name = prompt('请输入规则集名称:');
     if (!name) return;
-    const resp = await fetch('/analysis/clean/rules/save', {
+    const resp = await fetch('/clean/rules/save', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ name, description: '', rules })

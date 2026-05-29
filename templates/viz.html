@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block title %}可视化分析 - 交互式数据分析系统{% endblock %}
+
+{% block extra_css %}
+.viz-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+.viz-title {
+    font-size: 1.35rem;
+    margin-bottom: 4px;
+}
+.viz-meta {
+    color: var(--color-gray-500);
+    font-size: 0.9rem;
+}
+.viz-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+    margin-bottom: 24px;
+}
+.metric-card {
+    background: var(--color-white);
+    border: 1px solid var(--color-gray-200);
+    border-radius: var(--radius-md);
+    padding: 16px;
+}
+.metric-card h3 {
+    font-size: 1rem;
+    margin-bottom: 12px;
+    color: var(--color-gray-800);
+}
+.metric-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--color-gray-100);
+    font-size: 0.9rem;
+}
+.metric-row:last-child {
+    border-bottom: none;
+}
+.metric-label {
+    color: var(--color-gray-500);
+}
+.metric-value {
+    font-weight: 700;
+    color: var(--color-gray-800);
+}
+.bar-list {
+    display: grid;
+    gap: 10px;
+}
+.bar-row {
+    display: grid;
+    grid-template-columns: minmax(110px, 180px) 1fr 48px;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.88rem;
+}
+.bar-track {
+    height: 12px;
+    background: var(--color-gray-100);
+    border-radius: 999px;
+    overflow: hidden;
+}
+.bar-fill {
+    height: 100%;
+    min-width: 4px;
+    background: var(--color-primary);
+}
+.empty-note {
+    color: var(--color-gray-500);
+    font-size: 0.95rem;
+}
+{% endblock %}
+
+{% block content %}
+<div class="viz-header">
+    <div>
+        <h1 class="viz-title">可视化分析</h1>
+        <div class="viz-meta">{{ filename }} — {{ row_count }} 行 × {{ column_count }} 列</div>
+    </div>
+    <a href="/data/preview" class="btn btn-outline btn-sm">返回预览</a>
+</div>
+
+{% if numeric_cards %}
+<div class="viz-grid">
+    {% for card in numeric_cards %}
+    <div class="metric-card">
+        <h3>{{ card.column }}</h3>
+        <div class="metric-row">
+            <span class="metric-label">均值</span>
+            <span class="metric-value">{{ card.mean }}</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">最小值</span>
+            <span class="metric-value">{{ card.min }}</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">最大值</span>
+            <span class="metric-value">{{ card.max }}</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">缺失数</span>
+            <span class="metric-value">{{ card.missing }}</span>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body empty-note">当前数据没有可用于统计的数值列。</div>
+</div>
+{% endif %}
+
+{% if distribution %}
+<div class="card">
+    <div class="card-header">{{ distribution.column }} 分布</div>
+    <div class="card-body">
+        <div class="bar-list">
+            {% for bar in distribution.bars %}
+            <div class="bar-row">
+                <span>{{ bar.label }}</span>
+                <div class="bar-track">
+                    <div class="bar-fill" style="width: {{ bar.percent }}%"></div>
+                </div>
+                <strong>{{ bar.count }}</strong>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

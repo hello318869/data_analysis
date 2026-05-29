@@ -133,3 +133,5 @@ static/uploads/*
 !static/uploads/.gitkeep
 outputs/charts/*
 !outputs/charts/.gitkeep
+outputs/session_data/*
+!outputs/session_data/.gitkeep
