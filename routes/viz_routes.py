@@ -119,6 +119,8 @@ async def generate_chart_route(
         request.session["generated_charts"] = charts
     except ValueError as exc:
         error = str(exc)
+    except Exception as exc:
+        error = f"图表生成失败：{str(exc)}"
 
     charts = request.session.get("generated_charts", [])
     context = {

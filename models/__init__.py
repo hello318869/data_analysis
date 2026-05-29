@@ -10,17 +10,10 @@ from models.analysis_record import Dataset, AnalysisRecord                      
 
 engine = create_engine(
     DATABASE_URL,
+    pool_size=20,
+    max_overflow=5,
+    pool_recycle=3600,
     echo=False,
-    pool_pre_ping=True,
-    pool_recycle=3600,       # 每小时主动回收连接，防止 MySQL wait_timeout 后连接失效
-    pool_size=5,
-    max_overflow=10,
-    connect_args={
-        "connect_timeout": 10,
-        "read_timeout": 30,
-        "write_timeout": 30,
-        "charset": "utf8mb4",
-    },
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

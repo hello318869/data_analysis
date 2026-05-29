@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}服务器错误 - 交互式数据分析系统{% endblock %}
+
+{% block extra_css %}
+.error-page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    min-height: 60vh;
+    padding: 40px 20px;
+}
+.error-code {
+    font-size: 6rem;
+    font-weight: 800;
+    color: var(--color-gray-200);
+    line-height: 1;
+    margin-bottom: 16px;
+}
+.error-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--color-gray-800);
+    margin-bottom: 8px;
+}
+.error-message {
+    color: var(--color-gray-500);
+    margin-bottom: 32px;
+    max-width: 480px;
+    line-height: 1.7;
+}
+{% endblock %}
+
+{% block content %}
+<div class="error-page">
+    <div class="error-code">500</div>
+    <h2 class="error-title">服务器内部错误</h2>
+    <p class="error-message">服务器遇到意外错误，请稍后重试。如问题持续存在请联系管理员。</p>
+    <a href="/" class="btn btn-primary btn-lg">返回首页</a>
+</div>
+{% endblock %}

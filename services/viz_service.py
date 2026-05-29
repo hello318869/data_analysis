@@ -26,6 +26,10 @@ FONT_PRIORITY = [
 ]
 CHINESE_FONT_NAMES = set(FONT_PRIORITY[:-1])
 
+# Note: If Chinese characters appear as boxes (tofu), install Chinese fonts.
+# On Ubuntu: sudo apt install fonts-wqy-microhei
+# On Windows: SimHei and Microsoft YaHei are typically pre-installed
+
 
 def _choose_chart_font() -> tuple[str | None, bool]:
     available_fonts = {font.name for font in font_manager.fontManager.ttflist}
@@ -35,12 +39,13 @@ def _choose_chart_font() -> tuple[str | None, bool]:
     return None, False
 
 
-def _apply_chart_font() -> bool:
+def _get_chart_rc_params() -> tuple[dict[str, str | bool | list[str]], bool]:
+    """Return rc params dict for chart font configuration (thread-safe)."""
     font_name, use_chinese_text = _choose_chart_font()
+    rc_params: dict[str, str | bool | list[str]] = {"axes.unicode_minus": False}
     if font_name:
-        plt.rcParams["font.sans-serif"] = [font_name]
-    plt.rcParams["axes.unicode_minus"] = False
-    return use_chinese_text
+        rc_params["font.sans-serif"] = [font_name]
+    return rc_params, use_chinese_text
 
 
 def _parse_figsize(figsize_str: str) -> tuple[int, int]:
@@ -69,38 +74,53 @@ def generate_chart(
 
     x_data = df[x_col]
     y_data = df[y_col]
-    use_chinese_text = _apply_chart_font()
+
+    # Validate y column is numeric
+    from pandas.api.types import is_numeric_dtype
+    if not is_numeric_dtype(y_data):
+        raise ValueError(f"列 '{y_col}' 不是数值类型，无法用于图表绘制。请选择一个数值列作为 Y 轴。")
+
+    # Get font rc_params (thread-safe, no global rcParams modification)
+    rc_params, use_chinese_text = _get_chart_rc_params()
 
     if not title:
         title = f"{y_col} vs {x_col}" if use_chinese_text else f"{y_col} vs {x_col}"
 
     figsize_tuple = _parse_figsize(figsize)
-    fig, ax = plt.subplots(figsize=figsize_tuple, dpi=120)
 
-    try:
-        if chart_type == "line":
-            ax.plot(x_data, y_data, color=color, linewidth=1.5, marker="o", markersize=4)
-        elif chart_type == "bar":
-            ax.bar(x_data.astype(str), y_data, color=color, width=0.65)
-            plt.setp(ax.get_xticklabels(), rotation=45, ha="right", fontsize=8)
-        elif chart_type == "scatter":
-            ax.scatter(x_data, y_data, color=color, alpha=0.75, edgecolors="white", linewidth=0.5)
-        else:
-            raise ValueError(f"不支持的图表类型: {chart_type}")
+    # Determine x data type for proper display
+    if is_numeric_dtype(x_data):
+        x_plot = x_data
+    else:
+        x_plot = x_data.astype(str)
 
-        ax.set_title(title, fontsize=13)
-        ax.set_xlabel(x_col)
-        ax.set_ylabel(y_col)
-        ax.grid(True, linestyle="--", alpha=0.25)
+    with plt.rc_context(rc_params):
+        fig, ax = plt.subplots(figsize=figsize_tuple, dpi=120)
 
-        fig.tight_layout()
+        try:
+            if chart_type == "line":
+                ax.plot(x_plot, y_data, color=color, linewidth=1.5, marker="o", markersize=4)
+            elif chart_type == "bar":
+                ax.bar(x_plot, y_data, color=color, width=0.65)
+                plt.setp(ax.get_xticklabels(), rotation=45, ha="right", fontsize=8)
+            elif chart_type == "scatter":
+                ax.scatter(x_plot, y_data, color=color, alpha=0.75, edgecolors="white", linewidth=0.5)
+            else:
+                raise ValueError(f"不支持的图表类型: {chart_type}")
 
-        os.makedirs(OUTPUT_DIR, exist_ok=True)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-        filename = f"{chart_type}_{timestamp}.png"
-        file_path = os.path.join(OUTPUT_DIR, filename)
-        fig.savefig(file_path, bbox_inches="tight")
-    finally:
-        plt.close(fig)
+            ax.set_title(title, fontsize=13)
+            ax.set_xlabel(x_col)
+            ax.set_ylabel(y_col)
+            ax.grid(True, linestyle="--", alpha=0.25)
+
+            fig.tight_layout()
+
+            os.makedirs(OUTPUT_DIR, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            filename = f"{chart_type}_{timestamp}.png"
+            file_path = os.path.join(OUTPUT_DIR, filename)
+            fig.savefig(file_path, bbox_inches="tight")
+        finally:
+            plt.close(fig)
 
     return f"/outputs/charts/{filename}"

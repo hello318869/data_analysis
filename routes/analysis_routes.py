@@ -3,8 +3,6 @@
 """
 from __future__ import annotations
 
-import json
-from io import StringIO
 from typing import Any
 
 import pandas as pd
@@ -20,43 +18,6 @@ from services.ml_service import compare_regression_models, run_linear_regression
 
 router = APIRouter()
 templates = None  # Will be set by main.py
-
-
-def _load_dataframe_from_session(request: Request) -> pd.DataFrame:
-    """从当前 session 还原 DataFrame。"""
-    df = load_dataframe_from_session(request)
-    if df is not None:
-        return df
-
-    df_json = request.session.get("df_json")
-    if not df_json:
-        raise ValueError("请先上传数据文件")
-
-    if isinstance(df_json, str):
-        try:
-            parsed = json.loads(df_json)
-        except json.JSONDecodeError:
-            return pd.read_json(StringIO(df_json))
-    else:
-        parsed = df_json
-
-    if isinstance(parsed, dict) and {"columns", "data"}.issubset(parsed):
-        return pd.DataFrame(
-            parsed["data"],
-            columns=parsed["columns"],
-            index=parsed.get("index"),
-        )
-
-    if isinstance(parsed, dict) and isinstance(parsed.get("data"), list):
-        return pd.DataFrame(parsed["data"])
-
-    if isinstance(parsed, list):
-        return pd.DataFrame(parsed)
-
-    if isinstance(parsed, dict):
-        return pd.DataFrame(parsed)
-
-    raise ValueError("无法读取 session 中的数据，请重新上传数据文件")
 
 
 def _get_filename(request: Request) -> str | None:
@@ -154,7 +115,9 @@ def _save_analysis_record(
 async def analysis_page(request: Request):
     """展示算法分析页面。"""
     try:
-        df = _load_dataframe_from_session(request)
+        df = load_dataframe_from_session(request)
+        if df is None:
+            raise ValueError("请先上传数据文件")
     except ValueError as exc:
         return _redirect_home_with_message(request, str(exc))
 
@@ -169,7 +132,9 @@ async def analysis_page(request: Request):
 async def regression_analysis(request: Request, params: AnalysisParams):
     """运行线性回归分析，并返回 HTML 结果页。"""
     try:
-        df = _load_dataframe_from_session(request)
+        df = load_dataframe_from_session(request)
+        if df is None:
+            raise ValueError("请先上传数据文件")
     except ValueError as exc:
         return _redirect_home_with_message(request, str(exc))
 
@@ -177,7 +142,16 @@ async def regression_analysis(request: Request, params: AnalysisParams):
         result = run_linear_regression(df, params.features, params.target)
         request.session["last_analysis"] = {
             "analysis_type": "regression",
-            **result,
+            "features": result["features"],
+            "target": result["target"],
+            "coefficients": result["coefficients"],
+            "intercept": result["intercept"],
+            "r2_score": result["r2_score"],
+            "mse": result["mse"],
+            "mae": result["mae"],
+            "train_size": result["train_size"],
+            "test_size": result["test_size"],
+            "scatter_chart_path": result["scatter_chart_path"],
         }
         _save_analysis_record(request, "regression", params, result)
         context = _build_page_context(request, df, result)
@@ -195,7 +169,9 @@ async def regression_analysis(request: Request, params: AnalysisParams):
 async def compare_analysis(request: Request, params: AnalysisParams):
     """运行线性回归基础结果，并额外对比 LinearRegression/Ridge/Lasso。"""
     try:
-        df = _load_dataframe_from_session(request)
+        df = load_dataframe_from_session(request)
+        if df is None:
+            raise ValueError("请先上传数据文件")
     except ValueError as exc:
         return _redirect_home_with_message(request, str(exc))
 
@@ -205,7 +181,18 @@ async def compare_analysis(request: Request, params: AnalysisParams):
         result.update(compare_result)
         request.session["last_analysis"] = {
             "analysis_type": "compare",
-            **result,
+            "features": result["features"],
+            "target": result["target"],
+            "coefficients": result["coefficients"],
+            "intercept": result["intercept"],
+            "r2_score": result["r2_score"],
+            "mse": result["mse"],
+            "mae": result["mae"],
+            "train_size": result["train_size"],
+            "test_size": result["test_size"],
+            "scatter_chart_path": result["scatter_chart_path"],
+            "comparison": compare_result.get("comparison"),
+            "best_algorithm": compare_result.get("best_algorithm"),
         }
         _save_analysis_record(request, "compare", params, result)
         context = _build_page_context(request, df, result)
@@ -223,7 +210,9 @@ async def compare_analysis(request: Request, params: AnalysisParams):
 async def predict_single(request: Request):
     """手动预测：基于上次训练模型的系数和截距，对用户输入进行预测。"""
     try:
-        df = _load_dataframe_from_session(request)
+        df = load_dataframe_from_session(request)
+        if df is None:
+            raise ValueError("请先上传数据文件")
     except ValueError as exc:
         return _redirect_home_with_message(request, str(exc))
 
@@ -233,15 +222,13 @@ async def predict_single(request: Request):
 
     features = last_analysis.get("features", [])
     target = last_analysis.get("target", "")
+    coefficients = last_analysis.get("coefficients", {})
+    intercept = last_analysis.get("intercept", 0.0)
 
-    if not features or not target:
+    if not features or not target or not coefficients:
         return _redirect_home_with_message(request, "上次分析数据不完整，请重新运行回归分析")
 
     try:
-        # Retrain model to get fresh coefficients (random_state=42 ensures reproducibility)
-        result = run_linear_regression(df, features, target)
-        coefficients = result["coefficients"]
-        intercept = result["intercept"]
 
         # Parse form input (one field per feature, using feature name as form key)
         form_data = await request.form()
@@ -255,11 +242,11 @@ async def predict_single(request: Request):
             except (ValueError, TypeError):
                 raise ValueError(f"特征 {feat} 的值不是有效数字")
 
-        # Compute prediction using coefficients
+        # Compute prediction using coefficients from session
         prediction = _predict_single(features, coefficients, intercept, input_values)
 
         context = _build_page_context(request, df, {
-            **result,
+            **last_analysis,
             "prediction_input": input_values,
             "prediction_result": prediction,
         })
@@ -281,7 +268,9 @@ async def last_analysis_result(request: Request):
         return RedirectResponse(url="/analysis", status_code=303)
 
     try:
-        df = _load_dataframe_from_session(request)
+        df = load_dataframe_from_session(request)
+        if df is None:
+            raise ValueError("请先上传数据文件")
         context = _build_page_context(request, df, last_analysis)
     except ValueError:
         context = {

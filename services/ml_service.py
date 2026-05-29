@@ -22,6 +22,7 @@ import pandas as pd
 from pandas.api.types import is_numeric_dtype
 from sklearn.linear_model import Lasso, LinearRegression, Ridge
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 
 from config import OUTPUT_DIR
@@ -30,6 +31,9 @@ from config import OUTPUT_DIR
 TEST_SIZE = 0.2
 RANDOM_STATE = 42
 MIN_SAMPLE_SIZE = 5
+# Note: If Chinese characters appear as boxes (tofu), install one of the fonts above.
+# On Ubuntu: sudo apt install fonts-wqy-microhei
+# On Windows: fonts are typically pre-installed
 FONT_PRIORITY = [
     "SimHei",
     "Microsoft YaHei",
@@ -68,18 +72,21 @@ def _choose_chart_font() -> tuple[str | None, bool]:
     return None, False
 
 
-def _apply_chart_font() -> bool:
+def _apply_chart_font() -> tuple[bool, dict]:
     """
-    设置 Matplotlib 字体，并返回是否应该使用中文文案。
+    返回是否应该使用中文文案，以及对应的 rcParams 字典。
+
+    不再直接修改全局 rcParams，调用方应使用 plt.rc_context()
+    来应用这些设置，以避免并发或跨图表副作用。
 
     如果系统只有 DejaVu Sans 或没有中文字体，就让图表使用英文文案，
     避免 Matplotlib 在终端输出大量中文 glyph warning。
     """
     font_name, use_chinese_text = _choose_chart_font()
+    rc_params: dict[str, Any] = {"axes.unicode_minus": False}
     if font_name:
-        plt.rcParams["font.sans-serif"] = [font_name]
-    plt.rcParams["axes.unicode_minus"] = False
-    return use_chinese_text
+        rc_params["font.sans-serif"] = [font_name]
+    return use_chinese_text, rc_params
 
 
 def validate_regression_columns(
@@ -230,6 +237,11 @@ def compare_regression_models(
     _, x_data, y_data = prepare_regression_data(df, features, target)
     x_train, x_test, y_train, y_test = _split_regression_data(x_data, y_data)
 
+    # Scale features for regularized models
+    scaler = StandardScaler()
+    x_train_scaled = scaler.fit_transform(x_train)
+    x_test_scaled = scaler.transform(x_test)
+
     models = {
         "LinearRegression": LinearRegression(),
         "Ridge": Ridge(),
@@ -238,8 +250,19 @@ def compare_regression_models(
 
     comparison: list[dict[str, Any]] = []
     for algorithm, model in models.items():
-        model.fit(x_train, y_train)
-        predicted = model.predict(x_test)
+        if algorithm == "LinearRegression":
+            model.fit(x_train, y_train)
+            predicted = model.predict(x_test)
+        else:
+            model.fit(x_train_scaled, y_train)
+            predicted = model.predict(x_test_scaled)
+            if algorithm == "Lasso" and model.n_iter_ >= 10000:
+                import warnings
+                from sklearn.exceptions import ConvergenceWarning
+                warnings.warn(
+                    f"Lasso may not have fully converged (n_iter={model.n_iter_})",
+                    ConvergenceWarning,
+                )
         metrics = _calculate_metrics(y_test, predicted)
         comparison.append({
             "algorithm": algorithm,
@@ -266,7 +289,7 @@ def generate_regression_scatter_chart(
     """
     os.makedirs(output_dir, exist_ok=True)
 
-    use_chinese_text = _apply_chart_font()
+    use_chinese_text, rc_params = _apply_chart_font()
     if use_chinese_text:
         title = "预测值 vs 真实值"
         x_label = "真实值"
@@ -284,33 +307,34 @@ def generate_regression_scatter_chart(
     filename = f"regression_scatter_{timestamp}.png"
     file_path = os.path.join(output_dir, filename)
 
-    fig, ax = plt.subplots(figsize=(7, 5), dpi=120)
-    try:
-        ax.scatter(actual_values, predicted_values, alpha=0.75, color="#2563eb")
+    with plt.rc_context(rc_params):
+        fig, ax = plt.subplots(figsize=(7, 5), dpi=120)
+        try:
+            ax.scatter(actual_values, predicted_values, alpha=0.75, color="#2563eb")
 
-        min_value = float(min(actual_values.min(), predicted_values.min()))
-        max_value = float(max(actual_values.max(), predicted_values.max()))
-        if min_value == max_value:
-            min_value -= 1.0
-            max_value += 1.0
+            min_value = float(min(actual_values.min(), predicted_values.min()))
+            max_value = float(max(actual_values.max(), predicted_values.max()))
+            if min_value == max_value:
+                min_value -= 1.0
+                max_value += 1.0
 
-        ax.plot(
-            [min_value, max_value],
-            [min_value, max_value],
-            linestyle="--",
-            color="#dc2626",
-            linewidth=1.5,
-            label=reference_label,
-        )
-        ax.set_title(title)
-        ax.set_xlabel(x_label)
-        ax.set_ylabel(y_label)
-        ax.legend()
-        ax.grid(True, linestyle="--", alpha=0.25)
+            ax.plot(
+                [min_value, max_value],
+                [min_value, max_value],
+                linestyle="--",
+                color="#dc2626",
+                linewidth=1.5,
+                label=reference_label,
+            )
+            ax.set_title(title)
+            ax.set_xlabel(x_label)
+            ax.set_ylabel(y_label)
+            ax.legend()
+            ax.grid(True, linestyle="--", alpha=0.25)
 
-        fig.tight_layout()
-        fig.savefig(file_path, bbox_inches="tight")
-    finally:
-        plt.close(fig)
+            fig.tight_layout()
+            fig.savefig(file_path, bbox_inches="tight")
+        finally:
+            plt.close(fig)
 
     return f"/outputs/charts/{filename}"

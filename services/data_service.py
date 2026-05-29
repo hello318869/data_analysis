@@ -9,6 +9,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
+import numpy as np
 import pandas as pd
 from fastapi import Request, UploadFile
 from sqlalchemy.orm import Session
@@ -52,15 +53,17 @@ def read_file_to_dataframe(file_bytes: bytes, filename: str) -> pd.DataFrame:
     """根据文件扩展名选择读取方式，返回 DataFrame。"""
     ext = os.path.splitext(filename)[1].lower()
 
-    if ext == ".csv":
-        return _read_csv_with_encoding_detection(file_bytes)
-    elif ext in (".xlsx", ".xls"):
-        try:
+    try:
+        if ext == ".csv":
+            return _read_csv_with_encoding_detection(file_bytes)
+        elif ext in (".xlsx", ".xls"):
             return pd.read_excel(io.BytesIO(file_bytes))
-        except Exception:
-            raise ValueError("Excel 文件格式错误或已损坏")
-    else:
-        raise ValueError("仅支持 CSV、XLSX、XLS 格式文件")
+        else:
+            raise ValueError("不支持的文件格式，请上传 CSV 或 Excel 文件")
+    except (pd.errors.ParserError, pd.errors.EmptyDataError, ValueError) as e:
+        raise ValueError(f"文件解析失败：{str(e)}。请检查文件格式是否正确。")
+    except Exception as e:
+        raise ValueError(f"文件读取失败：{str(e)}")
 
 
 def _read_csv_with_encoding_detection(file_bytes: bytes) -> pd.DataFrame:
@@ -142,25 +145,28 @@ def _dataframe_from_json(df_json: str) -> pd.DataFrame:
     try:
         parsed = json.loads(df_json)
     except json.JSONDecodeError:
-        return pd.read_json(io.StringIO(df_json))
+        df = pd.read_json(io.StringIO(df_json))
+    else:
+        if isinstance(parsed, dict) and {"columns", "data"}.issubset(parsed):
+            df = pd.DataFrame(
+                parsed["data"],
+                columns=parsed["columns"],
+                index=parsed.get("index"),
+            )
+        elif isinstance(parsed, dict) and isinstance(parsed.get("data"), list):
+            df = pd.DataFrame(parsed["data"])
+        elif isinstance(parsed, list):
+            df = pd.DataFrame(parsed)
+        elif isinstance(parsed, dict):
+            df = pd.DataFrame(parsed)
+        else:
+            raise ValueError("无法读取数据，请重新上传数据文件")
 
-    if isinstance(parsed, dict) and {"columns", "data"}.issubset(parsed):
-        return pd.DataFrame(
-            parsed["data"],
-            columns=parsed["columns"],
-            index=parsed.get("index"),
-        )
-
-    if isinstance(parsed, dict) and isinstance(parsed.get("data"), list):
-        return pd.DataFrame(parsed["data"])
-
-    if isinstance(parsed, list):
-        return pd.DataFrame(parsed)
-
-    if isinstance(parsed, dict):
-        return pd.DataFrame(parsed)
-
-    raise ValueError("无法读取数据，请重新上传数据文件")
+    # Restore NaN values lost in JSON serialization
+    for col in df.columns:
+        if df[col].dtype == object:
+            df[col] = df[col].where(df[col].notna(), np.nan)
+    return df
 
 
 def save_dataframe_to_session(

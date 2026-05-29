@@ -452,9 +452,17 @@ def _apply_outlier_action(df: pd.DataFrame, col: str, rule: ColumnRule) -> tuple
         return outlier_count, f"{col} 列（规则）：删除 {outlier_count} 个异常值"
 
     if rule.outlier_action == "clip":
-        lower_val = float(q1 - rule.iqr_multiplier * (q3 - q1))
-        upper_val = float(q3 + rule.iqr_multiplier * (q3 - q1))
+        if rule.outlier_method == "iqr":
+            lower_val = float(q1 - rule.iqr_multiplier * (q3 - q1))
+            upper_val = float(q3 + rule.iqr_multiplier * (q3 - q1))
+        elif rule.outlier_method == "zscore":
+            s_mean = float(series.mean())
+            s_std = float(series.std())
+            lower_val = s_mean - rule.zscore_threshold * s_std
+            upper_val = s_mean + rule.zscore_threshold * s_std
+        else:
+            return 0, ""
         df[col] = df[col].clip(lower=lower_val, upper=upper_val)
-        return outlier_count, f"{col} 列（规则）：IQR 截断 {outlier_count} 个异常值"
+        return outlier_count, f"{col} 列（规则）：{rule.outlier_method.upper()} 截断 {outlier_count} 个异常值"
 
     return 0, ""
