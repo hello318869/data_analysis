@@ -13,20 +13,9 @@
             {% endif %}
         </div>
         <div style="display:flex;gap:8px">
-            <a href="/preview" class="btn btn-outline btn-sm">← 返回预览</a>
+            <a href="/data/preview" class="btn btn-outline btn-sm">← 返回预览</a>
         </div>
     </div>
-
-    <!-- 消息提示 -->
-    {% if error %}
-    <div style="background:var(--color-danger-light);color:var(--color-danger);padding:10px 16px;border-radius:6px;margin-bottom:16px;font-size:14px">{{ error }}</div>
-    {% endif %}
-    {% if message %}
-    <div style="background:var(--color-success-light);color:var(--color-success);padding:10px 16px;border-radius:6px;margin-bottom:16px;font-size:14px">
-        {{ message }}
-        {% if cleaned_count %}(处理了 {{ cleaned_count }} 个单元格){% endif %}
-    </div>
-    {% endif %}
 
     <!-- Tabs -->
     <div style="display:flex;border-bottom:2px solid var(--color-gray-200);margin-bottom:20px;gap:0">

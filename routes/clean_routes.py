@@ -140,8 +140,7 @@ async def clean_execute(request: Request):
     return templates.TemplateResponse(
         request, "clean.html",
         _clean_page_context(request, df_cleaned, {
-            "message": "; ".join(messages) if messages else "清洗完成",
-            "cleaned_count": cleaned_count,
+            "message": "; ".join(messages) if messages else f"清洗完成（处理了 {cleaned_count} 个单元格）",
         })
     )
 
@@ -162,8 +161,7 @@ async def clean_auto(request: Request):
     return templates.TemplateResponse(
         request, "clean.html",
         _clean_page_context(request, df_cleaned, {
-            "message": "; ".join(messages) if messages else "自动清洗完成",
-            "cleaned_count": cleaned_count,
+            "message": "; ".join(messages) if messages else f"自动清洗完成（处理了 {cleaned_count} 个单元格）",
         })
     )
 
@@ -229,8 +227,7 @@ async def clean_rules_apply(request: Request):
     return templates.TemplateResponse(
         request, "clean.html",
         _clean_page_context(request, df_cleaned, {
-            "message": "; ".join(messages) if messages else "规则集清洗完成",
-            "cleaned_count": cleaned_count,
+            "message": "; ".join(messages) if messages else f"规则集清洗完成（处理了 {cleaned_count} 个单元格）",
         })
     )
 
