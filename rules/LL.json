@@ -1,0 +1,15 @@
+{
+  "name": "LL",
+  "description": "",
+  "rules": [
+    {
+      "column": "LOR",
+      "missing_strategy": "median",
+      "fill_value": null,
+      "outlier_method": "iqr",
+      "outlier_action": "clip",
+      "iqr_multiplier": 1.5,
+      "zscore_threshold": 3.0
+    }
+  ]
+}
