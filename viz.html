@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block title %}可视化分析 - 交互式数据分析系统{% endblock %}
+
+{% block extra_css %}
+.viz-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+.viz-title {
+    font-size: 1.35rem;
+    margin-bottom: 4px;
+}
+.viz-meta {
+    color: var(--color-gray-500);
+    font-size: 0.9rem;
+}
+.viz-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+    margin-bottom: 24px;
+}
+.metric-card {
+    background: var(--color-white);
+    border: 1px solid var(--color-gray-200);
+    border-radius: var(--radius-md);
+    padding: 16px;
+}
+.metric-card h3 {
+    font-size: 1rem;
+    margin-bottom: 12px;
+    color: var(--color-gray-800);
+}
+.metric-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--color-gray-100);
+    font-size: 0.9rem;
+}
+.metric-row:last-child {
+    border-bottom: none;
+}
+.metric-label {
+    color: var(--color-gray-500);
+}
+.metric-value {
+    font-weight: 700;
+    color: var(--color-gray-800);
+}
+.bar-list {
+    display: grid;
+    gap: 10px;
+}
+.bar-row {
+    display: grid;
+    grid-template-columns: minmax(110px, 180px) 1fr 48px;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.88rem;
+}
+.bar-track {
+    height: 12px;
+    background: var(--color-gray-100);
+    border-radius: 999px;
+    overflow: hidden;
+}
+.bar-fill {
+    height: 100%;
+    min-width: 4px;
+    background: var(--color-primary);
+}
+.empty-note {
+    color: var(--color-gray-500);
+    font-size: 0.95rem;
+}
+.viz-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px 24px;
+}
+.viz-form-grid .form-group.full {
+    grid-column: 1 / -1;
+}
+.form-row-inline {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+.form-row-inline .form-group {
+    flex: 1;
+    margin-bottom: 0;
+}
+.chart-gallery {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-top: 8px;
+}
+.chart-item {
+    background: var(--color-white);
+    border: 1px solid var(--color-gray-200);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+.chart-item img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+.chart-item .chart-index {
+    padding: 10px 16px;
+    font-size: 0.82rem;
+    color: var(--color-gray-500);
+    border-bottom: 1px solid var(--color-gray-100);
+    background: var(--color-gray-50);
+}
+{% endblock %}
+
+{% block content %}
+<div class="viz-header">
+    <div>
+        <h1 class="viz-title">可视化分析</h1>
+        <div class="viz-meta">{{ filename }} — {{ row_count }} 行 × {{ column_count }} 列</div>
+    </div>
+    <a href="/data/preview" class="btn btn-outline btn-sm">返回预览</a>
+</div>
+
+{% if numeric_cards %}
+<div class="viz-grid">
+    {% for card in numeric_cards %}
+    <div class="metric-card">
+        <h3>{{ card.column }}</h3>
+        <div class="metric-row">
+            <span class="metric-label">均值</span>
+            <span class="metric-value">{{ card.mean }}</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">最小值</span>
+            <span class="metric-value">{{ card.min }}</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">最大值</span>
+            <span class="metric-value">{{ card.max }}</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">缺失数</span>
+            <span class="metric-value">{{ card.missing }}</span>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body empty-note">当前数据没有可用于统计的数值列。</div>
+</div>
+{% endif %}
+
+{% if distribution %}
+<div class="card mb-3">
+    <div class="card-header">{{ distribution.column }} 分布</div>
+    <div class="card-body">
+        <div class="bar-list">
+            {% for bar in distribution.bars %}
+            <div class="bar-row">
+                <span>{{ bar.label }}</span>
+                <div class="bar-track">
+                    <div class="bar-fill" style="width: {{ bar.percent }}%"></div>
+                </div>
+                <strong>{{ bar.count }}</strong>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card mb-3">
+    <div class="card-header">生成图表</div>
+    <div class="card-body">
+        <form action="/viz/generate" method="post">
+            <div class="viz-form-grid">
+                <div class="form-group">
+                    <label for="chart_type">图表类型</label>
+                    <select id="chart_type" name="chart_type" required>
+                        <option value="line" {% if last_chart and 'line_' in last_chart %}selected{% endif %}>折线图</option>
+                        <option value="bar" {% if last_chart and 'bar_' in last_chart %}selected{% endif %}>柱状图</option>
+                        <option value="scatter" {% if last_chart and 'scatter_' in last_chart %}selected{% endif %}>散点图</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="color">颜色</label>
+                    <input type="color" id="color" name="color" value="#2563eb">
+                </div>
+                <div class="form-group">
+                    <label for="x_col">X 轴列</label>
+                    <select id="x_col" name="x_col" required>
+                        {% for col in columns %}
+                        <option value="{{ col }}">{{ col }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="y_col">Y 轴列</label>
+                    <select id="y_col" name="y_col" required>
+                        {% for col in columns %}
+                        <option value="{{ col }}">{{ col }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="title">图表标题（可选）</label>
+                    <input type="text" id="title" name="title" placeholder="留空自动生成" value="">
+                </div>
+                <div class="form-group">
+                    <label>图片尺寸（宽 × 高）</label>
+                    <div class="form-row-inline">
+                        <input type="number" id="figsize_w" value="8" min="4" max="20" style="width:60px">
+                        <span style="color:var(--color-gray-400)">×</span>
+                        <input type="number" id="figsize_h" value="5" min="3" max="16" style="width:60px">
+                        <input type="hidden" id="figsize" name="figsize" value="8,5">
+                    </div>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary mt-2">生成图表</button>
+        </form>
+    </div>
+</div>
+
+{% if charts %}
+<div class="card">
+    <div class="card-header">已生成图表（共 {{ charts|length }} 张）</div>
+    <div class="card-body">
+        <div class="chart-gallery">
+            {% for chart in charts %}
+            <div class="chart-item">
+                <div class="chart-index">#{{ loop.index }}</div>
+                <img src="{{ chart }}" alt="图表 {{ loop.index }}">
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var w = document.getElementById('figsize_w');
+    var h = document.getElementById('figsize_h');
+    var f = document.getElementById('figsize');
+    function update() {
+        f.value = (parseInt(w.value) || 8) + ',' + (parseInt(h.value) || 5);
+    }
+    w.addEventListener('input', update);
+    h.addEventListener('input', update);
+});
+</script>
+{% endblock %}
