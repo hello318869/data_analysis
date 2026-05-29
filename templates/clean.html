@@ -13,7 +13,7 @@
             {% endif %}
         </div>
         <div style="display:flex;gap:8px">
-            <a href="/data/preview" class="btn btn-outline btn-sm">← 返回预览</a>
+            <a href="/preview" class="btn btn-outline btn-sm">← 返回预览</a>
         </div>
     </div>
 
@@ -153,7 +153,7 @@
             <div>
                 <h3 style="font-size:15px;margin-bottom:10px">自定义规则</h3>
                 <div id="customRulesWrap">
-                    <div style="font-size:13px;color:var(--color-gray-400);margin-bottom:8px">点击下方添加规则行</div>
+                    <div style="font-size:13px;color:var(--color-gray-400);margin-bottom:8px" class="hint">点击下方添加规则行</div>
                 </div>
                 <button type="button" onclick="addRuleRow()" style="font-size:13px;padding:4px 12px;background:var(--color-gray-100);border:1px dashed var(--color-gray-400);border-radius:4px;cursor:pointer;margin-bottom:12px">+ 添加规则</button>
                 <br>
@@ -265,6 +265,8 @@ function addRuleRow() {
 function collectRules() {
     const rules = [];
     document.querySelectorAll('#customRulesWrap > div').forEach(row => {
+        const colInput = row.querySelector('[data-f="column"]');
+        if (!colInput) return;
         const get = f => row.querySelector(`[data-f="${f}"]`).value;
         const strat = get('missing_strategy');
         const rule = { column: get('column'), missing_strategy: strat, outlier_method: get('outlier_method'), outlier_action: get('outlier_action') };
