@@ -101,6 +101,16 @@ def _format_regression_summary(result: dict[str, Any], model_name: str) -> str:
     )
 
 
+def _predict_single(
+    features: list[str],
+    coefficients: dict[str, float],
+    intercept: float,
+    input_values: dict[str, float],
+) -> float:
+    """Compute prediction: intercept + sum(c_i * v_i)."""
+    return intercept + sum(coefficients[f] * input_values[f] for f in features)
+
+
 def _save_analysis_record(
     request: Request,
     analysis_type: str,
@@ -204,6 +214,60 @@ async def compare_analysis(request: Request, params: AnalysisParams):
     except Exception as exc:
         context = _build_page_context(
             request, df, {"error": f"算法分析失败：{exc}"}
+        )
+
+    return templates.TemplateResponse(request, "analysis.html", context)
+
+
+@router.post("/predict", response_class=HTMLResponse)
+async def predict_single(request: Request):
+    """手动预测：基于上次训练模型的系数和截距，对用户输入进行预测。"""
+    try:
+        df = _load_dataframe_from_session(request)
+    except ValueError as exc:
+        return _redirect_home_with_message(request, str(exc))
+
+    last_analysis = request.session.get("last_analysis")
+    if not last_analysis:
+        return _redirect_home_with_message(request, "请先运行一次回归分析")
+
+    features = last_analysis.get("features", [])
+    target = last_analysis.get("target", "")
+
+    if not features or not target:
+        return _redirect_home_with_message(request, "上次分析数据不完整，请重新运行回归分析")
+
+    try:
+        # Retrain model to get fresh coefficients (random_state=42 ensures reproducibility)
+        result = run_linear_regression(df, features, target)
+        coefficients = result["coefficients"]
+        intercept = result["intercept"]
+
+        # Parse form input (one field per feature, using feature name as form key)
+        form_data = await request.form()
+        input_values: dict[str, float] = {}
+        for feat in features:
+            raw = form_data.get(feat)
+            if raw is None:
+                raise ValueError(f"缺少特征值：{feat}")
+            try:
+                input_values[feat] = float(raw)
+            except (ValueError, TypeError):
+                raise ValueError(f"特征 {feat} 的值不是有效数字")
+
+        # Compute prediction using coefficients
+        prediction = _predict_single(features, coefficients, intercept, input_values)
+
+        context = _build_page_context(request, df, {
+            **result,
+            "prediction_input": input_values,
+            "prediction_result": prediction,
+        })
+    except ValueError as exc:
+        context = _build_page_context(request, df, {"error": str(exc)})
+    except Exception as exc:
+        context = _build_page_context(
+            request, df, {"error": f"预测失败：{exc}"}
         )
 
     return templates.TemplateResponse(request, "analysis.html", context)

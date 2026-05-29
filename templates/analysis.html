@@ -381,6 +381,40 @@
                 {% endif %}
             </div>
         </div>
+
+        {% if features is defined and target is defined and coefficients is defined %}
+        <div class="card" style="margin-top: 24px;">
+            <div class="card-header">手动预测</div>
+            <div class="card-body">
+                <p style="color: var(--color-gray-500); margin-bottom: 16px;">
+                    输入各特征值，预测 {{ target }} 的取值
+                </p>
+                <form method="post" action="/analysis/predict" style="display: grid; gap: 12px;">
+                    {% for feat in features %}
+                    <div class="form-group">
+                        <label for="pred-{{ feat }}">{{ feat }}</label>
+                        <input type="number" step="any" id="pred-{{ feat }}" name="{{ feat }}" required
+                               placeholder="输入 {{ feat }} 的值" class="form-control">
+                    </div>
+                    {% endfor %}
+                    <button type="submit" class="btn btn-primary btn-block">预测</button>
+                </form>
+
+                {% if prediction_result is defined %}
+                <div style="margin-top: 20px; padding: 16px; background: var(--color-primary-light); border-radius: var(--radius-md);">
+                    <div style="font-size: 0.85rem; color: var(--color-gray-500);">预测 {{ target }}</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: var(--color-primary);">
+                        {{ "%.2f"|format(prediction_result) }}
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--color-gray-400); margin-top: 4px;">
+                        基于训练好的 {{ features|join(", ") }} → {{ target }} 模型
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
         {% else %}
         <div class="card">
             <div class="card-body empty-state-panel">

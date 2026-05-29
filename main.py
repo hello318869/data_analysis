@@ -1,8 +1,9 @@
 """
 交互式数据分析系统 - FastAPI 应用入口
 """
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.middleware.sessions import SessionMiddleware
@@ -40,6 +41,17 @@ app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
 
 # Templates
 templates = Jinja2Templates(directory="templates")
+
+# Exception handlers
+@app.exception_handler(404)
+async def not_found_handler(request: Request, exc):
+    return templates.TemplateResponse("404.html", {"request": request}, status_code=404)
+
+
+@app.exception_handler(500)
+async def server_error_handler(request: Request, exc):
+    return templates.TemplateResponse("404.html", {"request": request}, status_code=500)
+
 
 # Include routers
 app.include_router(main_routes.router)
