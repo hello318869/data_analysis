@@ -90,7 +90,9 @@ async def visualization_page(request: Request):
         "numeric_cards": _build_numeric_cards(df),
         "distribution": _build_distribution(df),
         "columns": df.columns.tolist(),
+        "numeric_columns": df.select_dtypes(include="number").columns.tolist(),
         "charts": charts,
+        "selected_chart_type": "scatter",
     }
     return templates.TemplateResponse(request, "viz.html", context)
 
@@ -114,15 +116,13 @@ async def generate_chart_route(
     chart_path = None
     try:
         chart_path = generate_chart(df, chart_type, x_col, y_col, title, color, figsize)
-        charts = request.session.get("generated_charts", [])
-        charts.append(chart_path)
-        request.session["generated_charts"] = charts
+        request.session["generated_charts"] = [chart_path]
     except ValueError as exc:
         error = str(exc)
     except Exception as exc:
         error = f"图表生成失败：{str(exc)}"
 
-    charts = request.session.get("generated_charts", [])
+    charts = [chart_path] if chart_path else []
     context = {
         "error": error,
         "user": request.session.get("user"),
@@ -132,8 +132,10 @@ async def generate_chart_route(
         "numeric_cards": _build_numeric_cards(df),
         "distribution": _build_distribution(df),
         "columns": df.columns.tolist(),
+        "numeric_columns": df.select_dtypes(include="number").columns.tolist(),
         "charts": charts,
         "last_chart": chart_path,
+        "selected_chart_type": chart_type,
     }
     return templates.TemplateResponse(request, "viz.html", context)
 
@@ -156,6 +158,8 @@ async def show_charts(request: Request):
         "numeric_cards": _build_numeric_cards(df),
         "distribution": _build_distribution(df),
         "columns": df.columns.tolist(),
+        "numeric_columns": df.select_dtypes(include="number").columns.tolist(),
         "charts": charts,
+        "selected_chart_type": "scatter",
     }
     return templates.TemplateResponse(request, "viz.html", context)
