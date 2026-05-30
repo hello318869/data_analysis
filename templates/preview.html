@@ -51,6 +51,10 @@
 
 {% block content %}
 
+{% if error %}
+<div class="alert alert-danger mb-2">{{ error }}</div>
+{% endif %}
+
 <div class="summary-cards">
     <div class="summary-card">
         <div class="card-label">文件名</div>
@@ -109,6 +113,8 @@
     <a href="/clean" class="btn btn-primary">数据清洗</a>
     <a href="/viz" class="btn btn-outline">可视化分析</a>
     <a href="/analysis" class="btn btn-outline">算法分析</a>
+    <a href="/data/export?format=csv" class="btn btn-outline">导出 CSV</a>
+    <a href="/data/export?format=xlsx" class="btn btn-outline">导出 Excel</a>
     <form method="POST" action="/data/delete" onsubmit="return confirm('确定要清除当前数据吗？')" style="display:inline;">
         <button type="submit" class="btn btn-danger">删除数据</button>
     </form>

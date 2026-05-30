@@ -90,3 +90,34 @@ def test_upload_still_accepts_gbk_csv_exports():
     assert "gbk.csv" in preview.text
     assert "张三" in preview.text
     assert "北京" in preview.text
+
+
+def test_export_requires_uploaded_data():
+    client = TestClient(app)
+
+    response = client.get("/data/export?format=csv", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/data/upload"
+
+
+def test_export_current_data_as_csv_and_excel():
+    client = TestClient(app)
+    client.post("/data/load-sample", follow_redirects=False)
+
+    csv_response = client.get("/data/export?format=csv")
+
+    assert csv_response.status_code == 200
+    assert csv_response.headers["content-type"].startswith("text/csv")
+    assert "attachment" in csv_response.headers["content-disposition"]
+    assert csv_response.content.startswith(b"\xef\xbb\xbf")
+    assert "sqft" in csv_response.content.decode("utf-8-sig")
+
+    excel_response = client.get("/data/export?format=xlsx")
+
+    assert excel_response.status_code == 200
+    assert excel_response.headers["content-type"].startswith(
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    assert "attachment" in excel_response.headers["content-disposition"]
+    assert excel_response.content.startswith(b"PK")

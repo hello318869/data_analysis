@@ -1,6 +1,13 @@
 """数据管理路由：上传、预览、删除、加载示例数据。"""
+from __future__ import annotations
+
+import io
+import os
+import re
+
+import pandas as pd
 from fastapi import APIRouter, Request, UploadFile, File
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 
 from models import get_db
@@ -19,6 +26,15 @@ from services.data_service import (
 
 router = APIRouter()
 templates: Jinja2Templates = None
+
+
+def _export_filename(filename: str | None, extension: str) -> str:
+    """Build a safe ASCII filename for browser downloads."""
+    base_name = os.path.splitext(filename or "data")[0]
+    safe_name = re.sub(r"[^A-Za-z0-9._-]+", "_", base_name).strip("._")
+    if not safe_name:
+        safe_name = "data"
+    return f"{safe_name}_export.{extension}"
 
 
 @router.get("/upload", response_class=HTMLResponse)
@@ -77,6 +93,7 @@ async def preview_page(request: Request):
 
     return templates.TemplateResponse(request, "preview.html", {
         "user": user,
+        "error": request.session.pop("flash_error", None),
         "filename": request.session.get("filename", "unknown"),
         "columns": df.columns.tolist(),
         "dtypes": df.dtypes.astype(str).to_dict(),
@@ -85,6 +102,47 @@ async def preview_page(request: Request):
         "preview_rows": preview_rows,
         "has_data": True,
     })
+
+
+@router.get("/export")
+async def export_data(request: Request, format: str = "csv"):
+    """导出当前 session 中的数据，支持 CSV 和 Excel。"""
+    df = load_dataframe_from_session(request)
+    if df is None:
+        request.session["flash_error"] = "请先上传数据文件"
+        return RedirectResponse(url="/data/upload", status_code=303)
+
+    filename = request.session.get("filename", "data")
+    export_format = format.lower().strip()
+
+    if export_format == "csv":
+        output_filename = _export_filename(filename, "csv")
+        csv_text = "\ufeff" + df.to_csv(index=False)
+        content = io.BytesIO(csv_text.encode("utf-8"))
+        return StreamingResponse(
+            content,
+            media_type="text/csv; charset=utf-8",
+            headers={
+                "Content-Disposition": f'attachment; filename="{output_filename}"'
+            },
+        )
+
+    if export_format in {"xlsx", "excel"}:
+        output_filename = _export_filename(filename, "xlsx")
+        content = io.BytesIO()
+        with pd.ExcelWriter(content, engine="openpyxl") as writer:
+            df.to_excel(writer, index=False, sheet_name="data")
+        content.seek(0)
+        return StreamingResponse(
+            content,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={
+                "Content-Disposition": f'attachment; filename="{output_filename}"'
+            },
+        )
+
+    request.session["flash_error"] = "不支持的导出格式，请选择 CSV 或 Excel"
+    return RedirectResponse(url="/data/preview", status_code=303)
 
 
 @router.post("/delete")
