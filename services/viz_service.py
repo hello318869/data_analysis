@@ -7,11 +7,12 @@ import matplotlib
 
 matplotlib.use("Agg")
 
+import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 from matplotlib import font_manager
 import numpy as np
 import pandas as pd
-from pandas.api.types import is_numeric_dtype
+from pandas.api.types import is_datetime64_any_dtype, is_numeric_dtype
 from pandas.plotting import scatter_matrix
 
 from config import OUTPUT_DIR
@@ -84,6 +85,30 @@ def _save_figure(fig, chart_type: str) -> str:
     return f"/outputs/charts/{filename}"
 
 
+def _coerce_datetime_axis(series: pd.Series) -> pd.Series | None:
+    """Return parsed datetimes when a column is likely a date axis."""
+    if is_datetime64_any_dtype(series):
+        return pd.to_datetime(series, errors="coerce")
+
+    # Numeric columns are usually quantities, not date labels.
+    if is_numeric_dtype(series):
+        return None
+
+    parsed = pd.to_datetime(series, errors="coerce")
+    valid_ratio = float(parsed.notna().mean()) if len(parsed) else 0.0
+    if valid_ratio >= 0.8 and parsed.dropna().nunique() >= 2:
+        return parsed
+    return None
+
+
+def _format_datetime_axis(ax) -> None:
+    """Use compact date ticks so dense date labels do not overlap."""
+    locator = mdates.AutoDateLocator(minticks=4, maxticks=8)
+    ax.xaxis.set_major_locator(locator)
+    ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(locator))
+    plt.setp(ax.get_xticklabels(), rotation=30, ha="right", fontsize=8)
+
+
 def generate_chart(
     df: pd.DataFrame,
     chart_type: str,
@@ -122,9 +147,15 @@ def generate_chart(
                 if plot_df.empty:
                     raise ValueError("选择的列没有可用于绘图的数据。")
 
-                x_data = plot_df[x_col]
+                datetime_x = _coerce_datetime_axis(plot_df[x_col])
+                x_is_datetime = datetime_x is not None
+                if x_is_datetime:
+                    plot_df = plot_df.assign(_datetime_x=datetime_x).dropna(subset=["_datetime_x"])
+                    plot_df = plot_df.sort_values("_datetime_x")
+
+                x_data = plot_df["_datetime_x"] if x_is_datetime else plot_df[x_col]
                 y_data = plot_df[y_col]
-                x_plot = x_data if is_numeric_dtype(x_data) else x_data.astype(str)
+                x_plot = x_data if x_is_datetime or is_numeric_dtype(x_data) else x_data.astype(str)
 
                 fig, ax = plt.subplots(figsize=figsize_tuple, dpi=120)
                 if chart_type == "line":
@@ -142,6 +173,8 @@ def generate_chart(
                 ax.set_xlabel(x_col)
                 ax.set_ylabel(y_col)
                 ax.grid(True, linestyle="--", alpha=0.25)
+                if x_is_datetime:
+                    _format_datetime_axis(ax)
 
             elif chart_type == "hist":
                 hist_col = y_col if y_col in df.columns and is_numeric_dtype(df[y_col]) else x_col
