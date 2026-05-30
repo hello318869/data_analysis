@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from datetime import datetime
 
 import matplotlib
@@ -28,6 +29,10 @@ FONT_PRIORITY = [
     "DejaVu Sans",
 ]
 CHINESE_FONT_NAMES = set(FONT_PRIORITY[:-1])
+DATE_COLUMN_KEYWORDS = ("date", "time", "day", "month", "year", "日期", "时间")
+DATE_TEXT_PATTERN = re.compile(
+    r"(\d{4}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}|^\d{8}$)"
+)
 
 # Note: If Chinese characters appear as boxes (tofu), install Chinese fonts.
 # On Ubuntu: sudo apt install fonts-wqy-microhei
@@ -94,6 +99,17 @@ def _coerce_datetime_axis(series: pd.Series) -> pd.Series | None:
     if is_numeric_dtype(series):
         return None
 
+    text_values = series.dropna().astype(str).str.strip()
+    if text_values.empty:
+        return None
+
+    sample = text_values.head(30)
+    date_like_ratio = float(sample.map(lambda value: bool(DATE_TEXT_PATTERN.search(value))).mean())
+    column_name = str(series.name or "").lower()
+    name_looks_date = any(keyword in column_name for keyword in DATE_COLUMN_KEYWORDS)
+    if date_like_ratio < 0.6 and not (name_looks_date and date_like_ratio >= 0.2):
+        return None
+
     parsed = pd.to_datetime(series, errors="coerce")
     valid_ratio = float(parsed.notna().mean()) if len(parsed) else 0.0
     if valid_ratio >= 0.8 and parsed.dropna().nunique() >= 2:
@@ -107,6 +123,43 @@ def _format_datetime_axis(ax) -> None:
     ax.xaxis.set_major_locator(locator)
     ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(locator))
     plt.setp(ax.get_xticklabels(), rotation=30, ha="right", fontsize=8)
+
+
+def _short_label(value: object, max_length: int = 14) -> str:
+    """Shorten long category labels so axis text stays readable."""
+    label = str(value)
+    if len(label) <= max_length:
+        return label
+    return f"{label[:max_length - 3]}..."
+
+
+def _category_tick_positions(count: int, max_ticks: int = 12) -> list[int]:
+    """Pick a small number of evenly spaced category tick positions."""
+    if count <= max_ticks:
+        return list(range(count))
+    step = max(1, int(np.ceil(count / max_ticks)))
+    positions = list(range(0, count, step))
+    last_position = count - 1
+    if positions[-1] != last_position:
+        positions.append(last_position)
+    return positions
+
+
+def _format_categorical_x_axis(ax, labels: list[object], max_ticks: int = 12) -> None:
+    """Show sampled and shortened category labels on a crowded X axis."""
+    positions = _category_tick_positions(len(labels), max_ticks=max_ticks)
+    ax.set_xticks(positions)
+    ax.set_xticklabels([_short_label(labels[pos]) for pos in positions], rotation=35, ha="right", fontsize=8)
+
+
+def _draw_horizontal_bar(ax, labels: list[object], values: pd.Series | np.ndarray, color: str) -> None:
+    """Draw long category labels on the Y axis to avoid crowded X labels."""
+    short_labels = [_short_label(label, max_length=24) for label in labels]
+    positions = np.arange(len(short_labels))
+    ax.barh(positions, values, color=color, height=0.65)
+    ax.set_yticks(positions)
+    ax.set_yticklabels(short_labels, fontsize=8)
+    ax.invert_yaxis()
 
 
 def generate_chart(
@@ -155,7 +208,8 @@ def generate_chart(
 
                 x_data = plot_df["_datetime_x"] if x_is_datetime else plot_df[x_col]
                 y_data = plot_df[y_col]
-                x_plot = x_data if x_is_datetime or is_numeric_dtype(x_data) else x_data.astype(str)
+                x_is_categorical = not x_is_datetime and not is_numeric_dtype(x_data)
+                x_plot = x_data if x_is_datetime or is_numeric_dtype(x_data) else np.arange(len(plot_df))
 
                 fig, ax = plt.subplots(figsize=figsize_tuple, dpi=120)
                 if chart_type == "line":
@@ -163,18 +217,27 @@ def generate_chart(
                     ax.plot(x_plot, y_data, color=color, linewidth=1.5, marker="o", markersize=4)
                 elif chart_type == "bar":
                     default_title = f"{y_col} by {x_col}"
-                    ax.bar(x_plot, y_data, color=color, width=0.65)
-                    plt.setp(ax.get_xticklabels(), rotation=45, ha="right", fontsize=8)
+                    if x_is_categorical:
+                        grouped = plot_df.groupby(x_col)[y_col].mean().sort_values(ascending=False).head(25)
+                        _draw_horizontal_bar(ax, grouped.index.tolist(), grouped.values, color)
+                        ax.set_xlabel(y_col)
+                        ax.set_ylabel(x_col)
+                    else:
+                        ax.bar(x_plot, y_data, color=color, width=0.65)
+                        plt.setp(ax.get_xticklabels(), rotation=45, ha="right", fontsize=8)
                 else:
                     default_title = f"{y_col} vs {x_col}"
                     ax.scatter(x_plot, y_data, color=color, alpha=0.75, edgecolors="white", linewidth=0.5)
 
                 ax.set_title(title or default_title, fontsize=13)
-                ax.set_xlabel(x_col)
-                ax.set_ylabel(y_col)
+                if not (chart_type == "bar" and x_is_categorical):
+                    ax.set_xlabel(x_col)
+                    ax.set_ylabel(y_col)
                 ax.grid(True, linestyle="--", alpha=0.25)
                 if x_is_datetime:
                     _format_datetime_axis(ax)
+                elif x_is_categorical and chart_type != "bar":
+                    _format_categorical_x_axis(ax, plot_df[x_col].tolist())
 
             elif chart_type == "hist":
                 hist_col = y_col if y_col in df.columns and is_numeric_dtype(df[y_col]) else x_col
@@ -223,14 +286,20 @@ def generate_chart(
                 if plot_df.empty:
                     raise ValueError("选择的列没有可用于绘图的数据。")
 
-                grouped = plot_df.groupby(x_col)[y_col].mean().sort_values(ascending=False).head(20)
+                grouped = plot_df.groupby(x_col)[y_col].mean().sort_values(ascending=False).head(25)
                 fig, ax = plt.subplots(figsize=figsize_tuple, dpi=120)
-                ax.bar(grouped.index.astype(str), grouped.values, color=color, width=0.65)
+                labels = grouped.index.astype(str).tolist()
+                if len(labels) > 10 or any(len(label) > 12 for label in labels):
+                    _draw_horizontal_bar(ax, labels, grouped.values, color)
+                    ax.set_xlabel(_chart_text(use_chinese_text, f"{y_col} 均值", f"Average {y_col}"))
+                    ax.set_ylabel(x_col)
+                else:
+                    ax.bar(labels, grouped.values, color=color, width=0.65)
+                    ax.set_xlabel(x_col)
+                    ax.set_ylabel(_chart_text(use_chinese_text, f"{y_col} 均值", f"Average {y_col}"))
+                    plt.setp(ax.get_xticklabels(), rotation=45, ha="right", fontsize=8)
                 ax.set_title(title or _chart_text(use_chinese_text, f"{y_col} 按 {x_col} 分组均值", f"Average {y_col} by {x_col}"), fontsize=13)
-                ax.set_xlabel(x_col)
-                ax.set_ylabel(_chart_text(use_chinese_text, f"{y_col} 均值", f"Average {y_col}"))
                 ax.grid(True, axis="y", linestyle="--", alpha=0.25)
-                plt.setp(ax.get_xticklabels(), rotation=45, ha="right", fontsize=8)
 
             elif chart_type == "heatmap":
                 numeric_df = df.select_dtypes(include="number").dropna(how="all", axis=1)
