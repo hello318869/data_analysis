@@ -4,10 +4,12 @@
 from fastapi import APIRouter, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy.exc import IntegrityError
+from pydantic import ValidationError
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 from models import get_db
 from models.user import User
+from schemas.user import UserLogin, UserRegister
 from services.auth_service import hash_password, verify_password
 
 router = APIRouter()
@@ -27,17 +29,33 @@ async def login_page(request: Request):
 
 @router.post("/login")
 async def login(request: Request, username: str = Form(...), password: str = Form(...)):
-    """处理登录请求"""
-    with get_db() as db:
-        user = db.query(User).filter(User.username == username).first()
-        if not user or not verify_password(password, user.password_hash):
-            return templates.TemplateResponse(request, "login.html", {
-                "error": "用户名或密码错误",
-                "message": None
-            }, status_code=401)
-
-        request.session["user"] = {"id": user.id, "username": user.username}
-        return RedirectResponse(url="/", status_code=303)
+    # Validate with Pydantic schema
+    try:
+        _ = UserLogin(username=username, password=password)
+    except ValidationError as e:
+        messages: list[str] = []
+        for error in e.errors():
+            messages.append(error.get("msg", "输入格式错误"))
+        return templates.TemplateResponse(request, "login.html", {
+            "error": "；".join(messages),
+            "message": None
+        }, status_code=400)
+    
+    try:
+        with get_db() as db:
+            user = db.query(User).filter(User.username == username).first()
+            if not user or not verify_password(password, user.password_hash):
+                return templates.TemplateResponse(request, "login.html", {
+                    "error": "用户名或密码错误",
+                    "message": None
+                }, status_code=400)
+            request.session["user"] = {"id": user.id, "username": user.username}
+            return RedirectResponse(url="/", status_code=303)
+    except OperationalError:
+        return templates.TemplateResponse(request, "login.html", {
+            "error": "服务暂时不可用，请稍后重试",
+            "message": None
+        }, status_code=500)
 
 
 @router.get("/register", response_class=HTMLResponse)
@@ -55,38 +73,35 @@ async def register(
     password: str = Form(...),
     confirm_password: str = Form(...)
 ):
-    """处理注册请求"""
-    # Validate
-    if password != confirm_password:
+    # Validate with Pydantic schema (replaces manual checks)
+    try:
+        _ = UserRegister(username=username, password=password, confirm_password=confirm_password)
+    except ValidationError as e:
+        messages: list[str] = []
+        for error in e.errors():
+            messages.append(error.get("msg", "输入格式错误"))
         return templates.TemplateResponse(request, "register.html", {
-            "error": "两次输入的密码不一致"
+            "error": "；".join(messages)
         }, status_code=400)
-
-    if len(username) < 3 or len(password) < 6:
-        return templates.TemplateResponse(request, "register.html", {
-            "error": "用户名至少3位，密码至少6位"
-        }, status_code=400)
-
+    
     with get_db() as db:
         existing = db.query(User).filter(User.username == username).first()
         if existing:
             return templates.TemplateResponse(request, "register.html", {
                 "error": "用户名已存在"
             }, status_code=400)
-
+        
         try:
-            new_user = User(
-                username=username,
-                password_hash=hash_password(password)
-            )
+            new_user = User(username=username, password_hash=hash_password(password))
             db.add(new_user)
             db.commit()
-        except IntegrityError:
+        except (IntegrityError, OperationalError) as e:
             db.rollback()
+            error_msg = "用户名已存在" if isinstance(e, IntegrityError) else "服务暂时不可用，请稍后重试"
             return templates.TemplateResponse(request, "register.html", {
-                "error": "用户名已存在"
+                "error": error_msg
             }, status_code=400)
-
+        
         return RedirectResponse(url="/auth/login?registered=1", status_code=303)
 
 

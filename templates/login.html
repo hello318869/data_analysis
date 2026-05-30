@@ -64,3 +64,22 @@
     </div>
 </div>
 {% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.querySelector('form').addEventListener('submit', function(e) {
+    const username = this.querySelector('input[name="username"]').value.trim();
+    const password = this.querySelector('input[name="password"]').value.trim();
+    if (!username || !password) {
+        e.preventDefault();
+        alert('请填写用户名和密码');
+        return false;
+    }
+    if (username.length < 1) {
+        e.preventDefault();
+        alert('请输入用户名');
+        return false;
+    }
+});
+</script>
+{% endblock %}

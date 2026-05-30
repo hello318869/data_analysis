@@ -154,7 +154,7 @@
     <div class="chart-gallery">
         {% for path in record.chart_paths %}
         <div class="chart-card">
-            <img src="/{{ path }}" alt="分析图表 {{ loop.index }}" loading="lazy">
+            <img src="{{ path }}" alt="分析图表 {{ loop.index }}" loading="lazy">
             <div class="chart-caption">图表 {{ loop.index }}: {{ path.split('/')[-1] }}</div>
         </div>
         {% endfor %}

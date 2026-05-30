@@ -8,7 +8,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.middleware.sessions import SessionMiddleware
 
-from config import SECRET_KEY, BASE_DIR
+from config import SECRET_KEY, BASE_DIR, MAX_UPLOAD_SIZE_MB
 from models import engine, Base
 from routes import main_routes, auth_routes, history_routes
 from routes import analysis_routes, clean_routes, data_routes, viz_routes
@@ -45,12 +45,18 @@ templates = Jinja2Templates(directory="templates")
 # Exception handlers
 @app.exception_handler(404)
 async def not_found_handler(request: Request, exc):
-    return templates.TemplateResponse("404.html", {"request": request}, status_code=404)
+    try:
+        return templates.TemplateResponse("404.html", {"request": request}, status_code=404)
+    except Exception:
+        return HTMLResponse("<h1>404 - Page Not Found</h1>", status_code=404)
 
 
 @app.exception_handler(500)
 async def server_error_handler(request: Request, exc):
-    return templates.TemplateResponse("404.html", {"request": request}, status_code=500)
+    try:
+        return templates.TemplateResponse("500.html", {"request": request}, status_code=500)
+    except Exception:
+        return HTMLResponse("<h1>500 - Internal Server Error</h1>", status_code=500)
 
 
 # Include routers
@@ -63,10 +69,6 @@ app.include_router(clean_routes.router, tags=["数据清洗"])
 app.include_router(viz_routes.router, tags=["可视化"])
 
 # Share templates with route modules
-main_routes.templates = templates
-analysis_routes.templates = templates
-auth_routes.templates = templates
-history_routes.templates = templates
-data_routes.templates = templates
-clean_routes.templates = templates
-viz_routes.templates = templates
+for module in [main_routes, analysis_routes, auth_routes, history_routes, data_routes, clean_routes, viz_routes]:
+    module.templates = templates
+app.state.templates = templates

@@ -179,6 +179,11 @@
     </div>
 </div>
 
+{% if not available_columns or available_columns|length == 0 %}
+<div class="empty-state-panel" style="text-align:center;padding:40px">
+    <p style="color:var(--color-gray-500);font-size:16px">暂无数据，请先<a href="/data/upload" style="color:var(--color-primary)">上传数据集</a></p>
+</div>
+{% else %}
 <div class="analysis-layout">
     <div class="form-stack">
         <div class="card">
@@ -194,7 +199,7 @@
                             </option>
                             {% endfor %}
                         </select>
-                        <div class="select-help">可多选，建议选择至少 1 个特征列。</div>
+                        <div class="select-help">仅显示数值类型列（用于回归分析）。可多选，建议选择至少 1 个特征列。</div>
                     </div>
                     <div class="form-group">
                         <label for="regression-target">target 目标列</label>
@@ -225,7 +230,7 @@
                             </option>
                             {% endfor %}
                         </select>
-                        <div class="select-help">使用同一组字段对比 LinearRegression、Ridge、Lasso。</div>
+                        <div class="select-help">仅显示数值类型列（用于回归分析）。使用同一组字段对比 LinearRegression、Ridge、Lasso。</div>
                     </div>
                     <div class="form-group">
                         <label for="compare-target">target 目标列</label>
@@ -245,6 +250,15 @@
     </div>
 
     <div>
+        {% if r2_score is not defined %}
+        <div class="card">
+            <div class="card-body empty-state-panel">
+                <h3>等待分析</h3>
+                <p>请选择特征列和目标列，运行线性回归或算法对比后，结果会显示在这里。</p>
+            </div>
+        </div>
+        {% endif %}
+
         {% if r2_score is defined %}
         <div class="card">
             <div class="card-header">分析结果</div>
@@ -414,17 +428,10 @@
             </div>
         </div>
         {% endif %}
-
-        {% else %}
-        <div class="card">
-            <div class="card-body empty-state-panel">
-                <h3>等待分析</h3>
-                <p>请选择特征列和目标列，运行线性回归或算法对比后，结果会显示在这里。</p>
-            </div>
-        </div>
-        {% endif %}
     </div>
 </div>
+{% endif %}
+{% endif %}
 {% endif %}
 {% endblock %}
 
