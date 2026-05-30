@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>数据清洗模块</title>
+<style>
+:root{--bg:#f5f7fa;--card:#fff;--border:#e2e8f0;--text:#334155;--muted:#64748b;--primary:#3b82f6;--danger:#ef4444;--success:#22c55e;--warn:#f59e0b;--radius:8px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font:14px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text)}
+header{background:var(--primary);color:#fff;padding:12px 24px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+header h1{font-size:18px;font-weight:600}
+header .tools{margin-left:auto;display:flex;gap:8px;align-items:center}
+.btn{padding:6px 14px;border:none;border-radius:var(--radius);cursor:pointer;font-size:13px;font-weight:500;transition:.15s}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)}
+.btn-primary:hover:not(:disabled){background:rgba(255,255,255,.3)}
+.btn-outline{background:var(--card);color:var(--primary);border:1px solid var(--primary)}
+.btn-outline:hover:not(:disabled){background:var(--primary);color:#fff}
+.btn-success{background:var(--success);color:#fff}
+.btn-success:hover:not(:disabled){opacity:.9}
+.btn-danger{background:transparent;color:var(--danger);border:1px solid var(--danger)}
+.btn-danger:hover:not(:disabled){background:var(--danger);color:#fff}
+.btn-warn{background:var(--warn);color:#fff}
+main{max-width:1200px;margin:16px auto;padding:0 16px}
+.card{background:var(--card);border-radius:var(--radius);box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:12px}
+.card-header{padding:12px 16px;border-bottom:1px solid var(--border);font-weight:600;font-size:14px;display:flex;align-items:center;gap:8px}
+.card-body{padding:16px}
+.badge{font-size:11px;padding:2px 8px;border-radius:10px;font-weight:500}
+.badge-info{background:#dbeafe;color:#1d4ed8}
+.badge-ok{background:#dcfce7;color:#15803d}
+.badge-warn{background:#fef3c7;color:#92400e}
+.badge-danger{background:#fee2e2;color:#b91c1c}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--border)}
+th{background:#f8fafc;font-weight:600;position:sticky;top:0}
+tr:hover{background:#f8fafc}
+.tabs{display:flex;border-bottom:1px solid var(--border);padding:0 16px}
+.tab{padding:10px 18px;cursor:pointer;border-bottom:2px solid transparent;font-size:13px;font-weight:500;color:var(--muted);transition:.15s}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--primary);border-bottom-color:var(--primary)}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+.form-group{margin-bottom:12px}
+.form-label{display:block;font-size:13px;font-weight:500;color:var(--muted);margin-bottom:4px}
+select,input[type=text],input[type=number],input[type=file]{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px}
+select:focus,input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 2px rgba(59,130,246,.15)}
+.checkbox-group{display:flex;flex-wrap:wrap;gap:6px}
+.checkbox-group label{display:flex;align-items:center;gap:4px;font-size:13px;padding:4px 10px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;transition:.15s}
+.checkbox-group label:hover{border-color:var(--primary)}
+.checkbox-group input:checked+span{color:var(--primary);font-weight:600}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.col{flex:1;min-width:250px}
+.msg{font-size:13px;padding:8px 12px;border-radius:var(--radius);margin-bottom:8px}
+.msg-success{background:#dcfce7;color:#15803d}
+.msg-error{background:#fee2e2;color:#b91c1c}
+.msg-info{background:#dbeafe;color:#1d4ed8}
+.empty{text-align:center;color:var(--muted);padding:40px 0;font-size:14px}
+.scroll-x{overflow-x:auto;max-height:400px;overflow-y:auto}
+.rule-item{display:flex;align-items:center;gap:10px;padding:8px;border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px}
+.rule-item select,.rule-item input{width:auto;min-width:80px}
+.flex{display:flex}.gap-8{gap:8px}.items-center{align-items:center}.justify-between{justify-content:space-between}.mt-8{margin-top:8px}.mb-8{margin-bottom:8px}.text-sm{font-size:13px}.text-muted{color:var(--muted)}.font-mono{font-family:'Cascadia Code',Consolas,monospace}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🧹 数据清洗模块</h1>
+  <span style="font-size:12px;opacity:.8">交互式数据分析系统 · 后端 B</span>
+  <div class="tools">
+    <button class="btn btn-primary" onclick="loadDemo()">📂 载入示例数据</button>
+    <input type="file" id="fileInput" accept=".csv,.xlsx" style="display:none" onchange="handleUpload(this)">
+    <button class="btn btn-outline" onclick="document.getElementById('fileInput').click()">📤 上传文件</button>
+    <button class="btn btn-outline" onclick="refresh()">🔄 刷新</button>
+  </div>
+</header>
+
+<main>
+  <!-- 数据概要 -->
+  <div class="card" id="summaryCard" style="display:none">
+    <div class="card-body">
+      <div class="row text-sm">
+        <div><span class="text-muted">文件:</span> <strong id="sumFilename">-</strong></div>
+        <div><span class="text-muted">行数:</span> <strong id="sumRows">-</strong></div>
+        <div><span class="text-muted">列数:</span> <strong id="sumCols">-</strong></div>
+        <div><span class="text-muted">缺失:</span> <strong id="sumMissing">-</strong></div>
+        <div><span class="text-muted">异常:</span> <strong id="sumOutliers">-</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 操作消息 -->
+  <div id="msgBox"></div>
+
+  <!-- Tabs -->
+  <div class="card">
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab(this,'panelReport')">📊 清洗报告</div>
+      <div class="tab" onclick="switchTab(this,'panelManual')">🔧 手动清洗</div>
+      <div class="tab" onclick="switchTab(this,'panelAuto')">⚡ 一键清洗</div>
+      <div class="tab" onclick="switchTab(this,'panelRules')">📋 规则集</div>
+      <div class="tab" onclick="switchTab(this,'panelPreview')">👁 数据预览</div>
+    </div>
+
+    <!-- Tab: 清洗报告 -->
+    <div class="tab-panel active" id="panelReport">
+      <div class="card-body">
+        <div id="reportContent" class="empty">请先上传数据或载入示例数据</div>
+      </div>
+    </div>
+
+    <!-- Tab: 手动清洗 -->
+    <div class="tab-panel" id="panelManual">
+      <div class="card-body">
+        <div class="row">
+          <div class="col">
+            <div class="form-group">
+              <label class="form-label">选择要清洗的列</label>
+              <div class="checkbox-group" id="manualCols"></div>
+            </div>
+          </div>
+          <div class="col">
+            <div class="form-group">
+              <label class="form-label">清洗策略</label>
+              <select id="manualStrategy" onchange="toggleFillValue()">
+                <option value="mean">均值填充 (mean)</option>
+                <option value="median">中位数填充 (median)</option>
+                <option value="mode">众数填充 (mode)</option>
+                <option value="drop">删除含缺失行 (drop)</option>
+                <option value="custom">自定义值填充 (custom)</option>
+              </select>
+            </div>
+            <div class="form-group" id="fillValueGroup" style="display:none">
+              <label class="form-label">自定义填充值</label>
+              <input type="number" id="manualFillValue" placeholder="输入填充值" step="any">
+            </div>
+            <button class="btn btn-success" onclick="executeManualClean()">执行清洗</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: 一键清洗 -->
+    <div class="tab-panel" id="panelAuto">
+      <div class="card-body">
+        <p class="text-sm text-muted" style="margin-bottom:12px">
+          数值列 → 中位数填充，分类列 → 众数填充，异常值 → IQR 截断
+        </p>
+        <button class="btn btn-success" onclick="executeAutoClean()">⚡ 一键自动清洗</button>
+      </div>
+    </div>
+
+    <!-- Tab: 规则集 -->
+    <div class="tab-panel" id="panelRules">
+      <div class="card-body">
+        <div class="row">
+          <!-- 预设规则 -->
+          <div class="col">
+            <h3 style="font-size:14px;margin-bottom:8px">预设规则集</h3>
+            <div class="flex gap-8 mb-8">
+              <button class="btn btn-outline text-sm" onclick="applyRule('numeric')">数值列规则</button>
+              <button class="btn btn-outline text-sm" onclick="applyRule('categorical')">分类列规则</button>
+              <button class="btn btn-outline text-sm" onclick="applyRule('full')">全自动规则</button>
+            </div>
+            <h3 style="font-size:14px;margin-bottom:8px">已保存规则集</h3>
+            <div id="savedRulesList" class="text-sm text-muted">点击预设或创建规则</div>
+          </div>
+          <!-- 自定义规则 -->
+          <div class="col">
+            <h3 style="font-size:14px;margin-bottom:8px">自定义规则</h3>
+            <div id="customRules"><div class="text-muted text-sm">点击下方添加规则</div></div>
+            <div class="flex gap-8 mt-8">
+              <button class="btn btn-outline text-sm" onclick="addRuleRow()">+ 添加规则</button>
+              <button class="btn btn-primary text-sm" onclick="applyInlineRule()">应用此规则</button>
+              <button class="btn btn-outline text-sm" onclick="saveRuleSet()">💾 保存规则</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: 数据预览 -->
+    <div class="tab-panel" id="panelPreview">
+      <div class="card-body">
+        <div class="scroll-x">
+          <table id="previewTable"></table>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+// ============================================================
+// 工具函数
+// ============================================================
+const API = '/clean';
+
+async function api(method, path, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const resp = await fetch(API + path, opts);
+  const data = await resp.json();
+  return { status: resp.status, data };
+}
+
+function $(id) { return document.getElementById(id); }
+function showMsg(msg, cls) {
+  const box = $('msgBox');
+  box.innerHTML = `<div class="msg msg-${cls}">${msg}</div>`;
+}
+function clearMsg() { $('msgBox').innerHTML = ''; }
+
+// ============================================================
+// Tab 切换
+// ============================================================
+function switchTab(el, panelId) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  $(panelId).classList.add('active');
+  if (panelId === 'panelReport') loadReport();
+  if (panelId === 'panelPreview') loadPreview();
+  if (panelId === 'panelRules') loadRulesList();
+}
+
+// ============================================================
+// 数据载入
+// ============================================================
+async function loadDemo() {
+  clearMsg();
+  const df = {
+    columns: ["sqft","bedrooms","bathrooms","age","price","city"],
+    data: [
+      [1800,3,2.0,15,320000,"北京"], [2200,4,2.5,8,420000,"上海"], [null,2,1.0,null,210000,null],
+      [1500,3,2.0,30,null,"深圳"], [2800,5,3.0,5,550000,"北京"], [3000,4,2.5,2,480000,"广州"],
+      [950,2,1.0,40,180000,null], [1200,3,1.5,null,220000,"杭州"], [null,2,1.0,25,260000,"成都"],
+      [5000,null,500.0,3,null,"上海"]
+    ],
+    index: [0,1,2,3,4,5,6,7,8,9]
+  };
+  const json = JSON.stringify({columns: df.columns, data: df.data, index: df.index});
+  const resp = await fetch('/data/seed', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({df_json: json, filename: 'demo.csv'})
+  });
+  showMsg('示例数据已载入 (10行 × 6列)', 'success');
+  refresh();
+}
+
+async function handleUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('file', file);
+  const resp = await fetch('/data/upload', { method: 'POST', body: formData });
+  if (resp.ok) {
+    showMsg(`文件 "${file.name}" 已上传`, 'success');
+    refresh();
+  } else {
+    const data = await resp.json();
+    showMsg(data.detail || '上传失败', 'error');
+  }
+  input.value = '';
+}
+
+async function refresh() {
+  await loadReport();
+  await loadPreview();
+}
+
+// ============================================================
+// 报告
+// ============================================================
+async function loadReport() {
+  const {status, data} = await api('GET', '');
+  if (status !== 200) {
+    $('reportContent').innerHTML = `<div class="empty">${data.detail || '请先上传数据'}</div>`;
+    $('summaryCard').style.display = 'none';
+    return;
+  }
+  updateSummary(data);
+
+  let html = '<div class="row">';
+
+  // 缺失报告
+  html += '<div class="col"><h3 class="text-sm" style="margin-bottom:8px">缺失值报告 ';
+  if (data.missing_report.length === 0) html += '<span class="badge badge-ok">无缺失</span>';
+  else html += `<span class="badge badge-warn">${data.missing_report.length} 列有缺失</span>`;
+  html += '</h3>';
+  if (data.missing_report.length > 0) {
+    html += '<div class="scroll-x"><table><tr><th>列名</th><th>缺失数</th><th>缺失%</th><th>类型</th></tr>';
+    data.missing_report.forEach(r => {
+      html += `<tr><td><strong>${r.column}</strong></td><td>${r.missing_count}</td><td>${r.missing_pct}%</td><td class="font-mono">${r.dtype}</td></tr>`;
+    });
+    html += '</table></div>';
+  }
+  html += '</div>';
+
+  // 异常值报告
+  html += '<div class="col"><h3 class="text-sm" style="margin-bottom:8px">异常值报告 ';
+  if (data.outlier_report.length === 0) html += '<span class="badge badge-ok">无异常</span>';
+  else html += `<span class="badge badge-danger">${data.outlier_report.length} 列有异常</span>`;
+  html += '</h3>';
+  if (data.outlier_report.length > 0) {
+    html += '<div class="scroll-x"><table><tr><th>列名</th><th>异常数</th><th>下界</th><th>上界</th></tr>';
+    data.outlier_report.forEach(r => {
+      html += `<tr><td><strong>${r.column}</strong></td><td>${r.outlier_count}</td><td class="font-mono">${r.lower_bound}</td><td class="font-mono">${r.upper_bound}</td></tr>`;
+    });
+    html += '</table></div>';
+  }
+  html += '</div></div>';
+  $('reportContent').innerHTML = html;
+
+  // 更新手动清洗列选择
+  updateManualCols(data.columns);
+}
+
+function updateSummary(data) {
+  $('summaryCard').style.display = 'block';
+  $('sumRows').textContent = data.row_count;
+  $('sumCols').textContent = data.column_count;
+  $('sumMissing').innerHTML = data.missing_report.length === 0
+    ? '<span class="badge badge-ok">0</span>'
+    : `<span class="badge badge-warn">${data.missing_report.length}</span>`;
+  $('sumOutliers').innerHTML = data.outlier_report.length === 0
+    ? '<span class="badge badge-ok">0</span>'
+    : `<span class="badge badge-danger">${data.outlier_report.length}</span>`;
+}
+
+// ============================================================
+// 手动清洗
+// ============================================================
+let currentColumns = [];
+
+function updateManualCols(cols) {
+  currentColumns = cols;
+  let html = '';
+  cols.forEach(c => {
+    html += `<label><input type="checkbox" value="${c}"><span>${c}</span></label>`;
+  });
+  html += `<label class="text-muted" onclick="document.querySelectorAll('#manualCols input').forEach(c=>c.checked=!c.checked)" style="cursor:pointer">全选/取消</label>`;
+  $('manualCols').innerHTML = html;
+}
+
+function toggleFillValue() {
+  $('fillValueGroup').style.display = $('manualStrategy').value === 'custom' ? 'block' : 'none';
+}
+
+async function executeManualClean() {
+  const checks = document.querySelectorAll('#manualCols input[type=checkbox]:checked');
+  const columns = Array.from(checks).map(c => c.value);
+  if (columns.length === 0) { showMsg('请至少选择一列', 'error'); return; }
+
+  const strategy = $('manualStrategy').value;
+  const body = { strategy, columns, fill_value: null };
+  if (strategy === 'custom') {
+    const val = $('manualFillValue').value;
+    if (val === '') { showMsg('请输入自定义填充值', 'error'); return; }
+    body.fill_value = parseFloat(val);
+  }
+
+  clearMsg();
+  const {status, data} = await api('POST', '/execute', body);
+  if (status === 200) {
+    showMsg(data.message, 'success');
+    refresh();
+  } else {
+    showMsg(data.detail || '清洗失败', 'error');
+  }
+}
+
+// ============================================================
+// 一键清洗
+// ============================================================
+async function executeAutoClean() {
+  clearMsg();
+  const {status, data} = await api('POST', '/auto');
+  if (status === 200) {
+    showMsg(data.message, 'success');
+    refresh();
+  } else {
+    showMsg(data.detail || '自动清洗失败', 'error');
+  }
+}
+
+// ============================================================
+// 规则集
+// ============================================================
+async function loadRulesList() {
+  const {status, data} = await api('GET', '/rules');
+  if (status !== 200) return;
+
+  let html = '';
+  data.presets.forEach(p => {
+    html += `<div class="rule-item"><span>🎯 ${p}</span><span class="badge badge-info">预设</span></div>`;
+  });
+  if (data.saved.length === 0) {
+    html += '<div class="text-sm text-muted mt-8">暂无已保存规则集</div>';
+  } else {
+    data.saved.forEach(s => {
+      html += `<div class="rule-item justify-between"><span>💾 ${s}</span><button class="btn btn-danger text-sm" onclick="deleteRule('${s}')">删除</button></div>`;
+    });
+  }
+  $('savedRulesList').innerHTML = html;
+}
+
+async function applyRule(name) {
+  clearMsg();
+  const {status, data} = await api('POST', '/rules/apply', { name });
+  if (status === 200) {
+    showMsg(data.message, 'success');
+    refresh();
+  } else {
+    showMsg(data.detail || '应用失败', 'error');
+  }
+}
+
+async function deleteRule(name) {
+  if (!confirm(`确认删除规则集 "${name}"?`)) return;
+  const resp = await fetch(API + '/rules/' + name, { method: 'DELETE' });
+  const data = await resp.json();
+  showMsg(data.message || data.detail || '已删除', resp.ok ? 'success' : 'error');
+  loadRulesList();
+}
+
+// 自定义规则
+let ruleCounter = 0;
+function addRuleRow() {
+  ruleCounter++;
+  const div = $('customRules');
+  const row = document.createElement('div');
+  row.className = 'rule-item';
+  row.id = 'ruleRow' + ruleCounter;
+  row.innerHTML = `
+    <input type="text" placeholder="列名" style="width:100px" data-field="column">
+    <select data-field="missing_strategy" style="width:100px">
+      <option value="median">中位数</option><option value="mean">均值</option><option value="mode">众数</option>
+      <option value="drop">删除行</option><option value="custom">自定义</option><option value="skip">跳过</option>
+    </select>
+    <input type="number" placeholder="填充值" style="width:80px;display:none" data-field="fill_value" step="any">
+    <select data-field="outlier_method" style="width:90px">
+      <option value="iqr">IQR</option><option value="zscore">Z-Score</option><option value="none">不检测</option>
+    </select>
+    <select data-field="outlier_action" style="width:90px">
+      <option value="clip">截断</option><option value="remove">删除</option><option value="none">不处理</option>
+    </select>
+    <button class="btn btn-danger text-sm" onclick="this.parentElement.remove()">×</button>
+  `;
+  // toggle fill_value visibility
+  const stratSel = row.querySelector('[data-field="missing_strategy"]');
+  const fvInput = row.querySelector('[data-field="fill_value"]');
+  stratSel.onchange = () => { fvInput.style.display = stratSel.value === 'custom' ? '' : 'none'; };
+  div.appendChild(row);
+  if (div.querySelector('.text-muted')) div.querySelector('.text-muted').remove();
+}
+
+function collectRules() {
+  const rules = [];
+  document.querySelectorAll('#customRules .rule-item').forEach(row => {
+    const get = f => row.querySelector(`[data-field="${f}"]`).value;
+    const strat = get('missing_strategy');
+    const rule = {
+      column: get('column'),
+      missing_strategy: strat,
+      outlier_method: get('outlier_method'),
+      outlier_action: get('outlier_action'),
+    };
+    if (strat === 'custom') rule.fill_value = parseFloat(get('fill_value')) || null;
+    if (rule.column.trim()) rules.push(rule);
+  });
+  return rules;
+}
+
+async function applyInlineRule() {
+  const rules = collectRules();
+  if (rules.length === 0) { showMsg('请至少添加一条规则', 'error'); return; }
+  clearMsg();
+  const {status, data} = await api('POST', '/rules/apply', {
+    ruleset: { name: '自定义规则', description: '', rules }
+  });
+  if (status === 200) {
+    showMsg(data.message, 'success');
+    refresh();
+  } else {
+    showMsg(data.detail + (data.errors ? ': ' + data.errors.join('; ') : ''), 'error');
+  }
+}
+
+async function saveRuleSet() {
+  const rules = collectRules();
+  if (rules.length === 0) { showMsg('请至少添加一条规则', 'error'); return; }
+  const name = prompt('请输入规则集名称:');
+  if (!name) return;
+  const {status, data} = await api('POST', '/rules/save', {
+    name, description: '', rules
+  });
+  if (status === 200) {
+    showMsg(data.message, 'success');
+    loadRulesList();
+  } else {
+    showMsg(data.detail + (data.errors ? ': ' + data.errors.join('; ') : ''), 'error');
+  }
+}
+
+// ============================================================
+// 预览
+// ============================================================
+async function loadPreview() {
+  const {status, data} = await api('GET', '');
+  if (status !== 200) {
+    $('previewTable').innerHTML = '';
+    return;
+  }
+  let html = '<tr>';
+  data.columns.forEach(c => { html += `<th>${c}</th>`; });
+  html += '</tr>';
+  data.rows.forEach(row => {
+    html += '<tr>';
+    row.forEach(v => { html += `<td>${v === null ? '<span class="text-muted">NULL</span>' : v}</td>`; });
+    html += '</tr>';
+  });
+  $('previewTable').innerHTML = html;
+}
+</script>
+</body>
+</html>

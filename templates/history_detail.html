@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}记录详情 - 交互式数据分析系统{% endblock %}
+
+{% block extra_css %}
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+.page-header h2 {
+    font-size: 1.5rem;
+    color: var(--color-gray-800);
+}
+.detail-grid {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    gap: 0;
+    font-size: 0.92rem;
+}
+.detail-grid .detail-label {
+    padding: 14px 16px;
+    font-weight: 700;
+    color: var(--color-gray-600);
+    background-color: var(--color-gray-50);
+    border-bottom: 1px solid var(--color-gray-100);
+    border-right: 1px solid var(--color-gray-100);
+}
+.detail-grid .detail-value {
+    padding: 14px 20px;
+    color: var(--color-gray-700);
+    border-bottom: 1px solid var(--color-gray-100);
+    word-break: break-all;
+}
+.detail-grid .detail-value pre {
+    margin: 0;
+    font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+    font-size: 0.84rem;
+    background-color: var(--color-gray-50);
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    overflow-x: auto;
+    max-height: 300px;
+    overflow-y: auto;
+}
+.charts-section {
+    margin-top: 32px;
+}
+.charts-section h3 {
+    font-size: 1.15rem;
+    color: var(--color-gray-800);
+    margin-bottom: 16px;
+}
+.chart-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+}
+.chart-card {
+    background: var(--color-white);
+    border: 1px solid var(--color-gray-200);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+.chart-card img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+.chart-card .chart-caption {
+    padding: 10px 14px;
+    font-size: 0.82rem;
+    color: var(--color-gray-500);
+    background-color: var(--color-gray-50);
+    border-top: 1px solid var(--color-gray-100);
+}
+.actions-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+    .detail-grid {
+        grid-template-columns: 1fr;
+    }
+    .detail-grid .detail-label {
+        border-right: none;
+    }
+}
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <h2>📄 分析记录详情 #{{ record.id }}</h2>
+    <div class="actions-row">
+        <a href="/history" class="btn btn-sm btn-outline">← 返回列表</a>
+        <form method="POST" action="/history/{{ record.id }}/delete" style="display:inline;" onsubmit="return confirm('确定要删除此条记录吗？此操作不可撤销。')">
+            <button type="submit" class="btn btn-sm btn-danger">删除此记录</button>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body" style="padding: 0;">
+        <div class="detail-grid">
+            <div class="detail-label">记录 ID</div>
+            <div class="detail-value">{{ record.id }}</div>
+
+            <div class="detail-label">用户 ID</div>
+            <div class="detail-value">{{ record.user_id }}</div>
+
+            <div class="detail-label">数据集 ID</div>
+            <div class="detail-value">{{ record.dataset_id if record.dataset_id else '未关联' }}</div>
+
+            <div class="detail-label">分析类型</div>
+            <div class="detail-value">{{ record.analysis_type if record.analysis_type else '未指定' }}</div>
+
+            <div class="detail-label">创建时间</div>
+            <div class="detail-value">{{ record.created_at.strftime('%Y-%m-%d %H:%M:%S') if record.created_at else '-' }}</div>
+
+            <div class="detail-label">分析参数</div>
+            <div class="detail-value">
+                {% if record.parameters %}
+                <pre>{{ record.parameters | tojson(indent=2) }}</pre>
+                {% else %}
+                <span style="color: var(--color-gray-400);">无参数</span>
+                {% endif %}
+            </div>
+
+            <div class="detail-label">结果摘要</div>
+            <div class="detail-value">{{ record.result_summary if record.result_summary else '暂无摘要' }}</div>
+
+            <div class="detail-label">图表路径</div>
+            <div class="detail-value">
+                {% if record.chart_paths %}
+                <pre>{{ record.chart_paths | tojson(indent=2) }}</pre>
+                {% else %}
+                <span style="color: var(--color-gray-400);">无图表</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart Display Section -->
+{% if record.chart_paths %}
+<div class="charts-section">
+    <h3>📊 分析图表</h3>
+    <div class="chart-gallery">
+        {% for path in record.chart_paths %}
+        <div class="chart-card">
+            <img src="{{ path }}" alt="分析图表 {{ loop.index }}" loading="lazy">
+            <div class="chart-caption">图表 {{ loop.index }}: {{ path.split('/')[-1] }}</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

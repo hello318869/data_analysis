@@ -1,0 +1,340 @@
+{% extends "base.html" %}
+
+{% block title %}可视化分析 - 交互式数据分析系统{% endblock %}
+
+{% block extra_css %}
+.viz-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+.viz-title {
+    font-size: 1.35rem;
+    margin-bottom: 4px;
+}
+.viz-meta {
+    color: var(--color-gray-500);
+    font-size: 0.9rem;
+}
+.viz-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+    margin-bottom: 24px;
+}
+.metric-card {
+    background: var(--color-white);
+    border: 1px solid var(--color-gray-200);
+    border-radius: var(--radius-md);
+    padding: 16px;
+}
+.metric-card h3 {
+    font-size: 1rem;
+    margin-bottom: 12px;
+    color: var(--color-gray-800);
+}
+.metric-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--color-gray-100);
+    font-size: 0.9rem;
+}
+.metric-row:last-child {
+    border-bottom: none;
+}
+.metric-label {
+    color: var(--color-gray-500);
+}
+.metric-value {
+    font-weight: 700;
+    color: var(--color-gray-800);
+}
+.bar-list {
+    display: grid;
+    gap: 10px;
+}
+.bar-row {
+    display: grid;
+    grid-template-columns: minmax(110px, 180px) 1fr 48px;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.88rem;
+}
+.bar-track {
+    height: 12px;
+    background: var(--color-gray-100);
+    border-radius: 999px;
+    overflow: hidden;
+}
+.bar-fill {
+    height: 100%;
+    min-width: 4px;
+    background: var(--color-primary);
+}
+.empty-note {
+    color: var(--color-gray-500);
+    font-size: 0.95rem;
+}
+.viz-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px 24px;
+}
+.viz-form-grid .form-group.full {
+    grid-column: 1 / -1;
+}
+.form-row-inline {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+.form-row-inline .form-group {
+    flex: 1;
+    margin-bottom: 0;
+}
+.chart-gallery {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-top: 8px;
+}
+.chart-item {
+    background: var(--color-white);
+    border: 1px solid var(--color-gray-200);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+.chart-item img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+.chart-item .chart-index {
+    padding: 10px 16px;
+    font-size: 0.82rem;
+    color: var(--color-gray-500);
+    border-bottom: 1px solid var(--color-gray-100);
+    background: var(--color-gray-50);
+}
+.field-help {
+    color: var(--color-gray-500);
+    font-size: 0.86rem;
+    margin-top: 6px;
+    line-height: 1.5;
+}
+{% endblock %}
+
+{% block content %}
+<div class="viz-header">
+    <div>
+        <h1 class="viz-title">可视化分析</h1>
+        <div class="viz-meta">{{ filename }} — {{ row_count }} 行 × {{ column_count }} 列</div>
+    </div>
+    <a href="/data/preview" class="btn btn-outline btn-sm">返回预览</a>
+</div>
+
+{% if numeric_cards %}
+<div class="viz-grid">
+    {% for card in numeric_cards %}
+    <div class="metric-card">
+        <h3>{{ card.column }}</h3>
+        <div class="metric-row">
+            <span class="metric-label">均值</span>
+            <span class="metric-value">{{ card.mean }}</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">最小值</span>
+            <span class="metric-value">{{ card.min }}</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">最大值</span>
+            <span class="metric-value">{{ card.max }}</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">缺失数</span>
+            <span class="metric-value">{{ card.missing }}</span>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body empty-note">当前数据没有可用于统计的数值列。</div>
+</div>
+{% endif %}
+
+{% if distribution %}
+<div class="card mb-3">
+    <div class="card-header">{{ distribution.column }} 分布</div>
+    <div class="card-body">
+        <div class="bar-list">
+            {% for bar in distribution.bars %}
+            <div class="bar-row">
+                <span>{{ bar.label }}</span>
+                <div class="bar-track">
+                    <div class="bar-fill" style="width: {{ bar.percent }}%"></div>
+                </div>
+                <strong>{{ bar.count }}</strong>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card mb-3">
+    <div class="card-header">生成图表</div>
+    <div class="card-body">
+        <form action="/viz/generate" method="post">
+            <div class="viz-form-grid">
+                <div class="form-group">
+                    <label for="chart_type">图表类型</label>
+                    <select id="chart_type" name="chart_type" required>
+                        <option value="line" {% if selected_chart_type == 'line' %}selected{% endif %}>折线图</option>
+                        <option value="bar" {% if selected_chart_type == 'bar' %}selected{% endif %}>柱状图</option>
+                        <option value="scatter" {% if selected_chart_type == 'scatter' %}selected{% endif %}>散点图</option>
+                        <option value="hist" {% if selected_chart_type == 'hist' %}selected{% endif %}>直方图</option>
+                        <option value="box" {% if selected_chart_type == 'box' %}selected{% endif %}>箱线图</option>
+                        <option value="heatmap" {% if selected_chart_type == 'heatmap' %}selected{% endif %}>相关性热力图</option>
+                        <option value="scatter_matrix" {% if selected_chart_type == 'scatter_matrix' %}selected{% endif %}>多字段散点矩阵</option>
+                        <option value="grouped_bar" {% if selected_chart_type == 'grouped_bar' %}selected{% endif %}>分组柱状图</option>
+                        <option value="missing" {% if selected_chart_type == 'missing' %}selected{% endif %}>缺失值可视化</option>
+                    </select>
+                    <div id="chart_type_help" class="field-help"></div>
+                </div>
+                <div class="form-group">
+                    <label for="color">颜色</label>
+                    <input type="color" id="color" name="color" value="#2563eb">
+                </div>
+                <div class="form-group">
+                    <label for="x_col">X 轴列</label>
+                    <select id="x_col" name="x_col" required>
+                        {% for col in columns %}
+                        <option value="{{ col }}">{{ col }}</option>
+                        {% endfor %}
+                    </select>
+                    <div id="x_col_help" class="field-help"></div>
+                </div>
+                <div class="form-group">
+                    <label for="y_col">Y 轴列</label>
+                    <select id="y_col" name="y_col" required>
+                        {% for col in numeric_columns or columns %}
+                        <option value="{{ col }}">{{ col }}</option>
+                        {% endfor %}
+                    </select>
+                    <div id="y_col_help" class="field-help"></div>
+                </div>
+                <div class="form-group">
+                    <label for="title">图表标题（可选）</label>
+                    <input type="text" id="title" name="title" placeholder="留空自动生成" value="">
+                </div>
+                <div class="form-group">
+                    <label>图片尺寸（宽 × 高）</label>
+                    <div class="form-row-inline">
+                        <input type="number" id="figsize_w" value="8" min="4" max="20" style="width:60px">
+                        <span style="color:var(--color-gray-400)">×</span>
+                        <input type="number" id="figsize_h" value="5" min="3" max="16" style="width:60px">
+                        <input type="hidden" id="figsize" name="figsize" value="8,5">
+                    </div>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary mt-2">生成图表</button>
+        </form>
+    </div>
+</div>
+
+{% if charts %}
+<div class="card">
+    <div class="card-header">当前图表</div>
+    <div class="card-body">
+        <div class="chart-gallery">
+            {% for chart in charts %}
+            <div class="chart-item">
+                <div class="chart-index">#{{ loop.index }}</div>
+                <img src="{{ chart }}" alt="图表 {{ loop.index }}">
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var w = document.getElementById('figsize_w');
+    var h = document.getElementById('figsize_h');
+    var f = document.getElementById('figsize');
+    var chartType = document.getElementById('chart_type');
+    var help = document.getElementById('chart_type_help');
+    var xHelp = document.getElementById('x_col_help');
+    var yHelp = document.getElementById('y_col_help');
+    var helpText = {
+        line: {
+            chart: '适合展示趋势变化，例如面积越大价格如何变化。',
+            x: '推荐选择有顺序的字段，例如时间、编号、面积、年龄等。',
+            y: '必须选择数值字段，例如价格、销量、收入、评分等。'
+        },
+        bar: {
+            chart: '适合做简单对比，例如不同类别对应的数值大小。',
+            x: '推荐选择分类字段或少量取值字段，例如地区、类型、卧室数。',
+            y: '必须选择数值字段，例如价格、数量、均值等。'
+        },
+        scatter: {
+            chart: '适合观察两个变量是否相关，例如面积和房价的关系。',
+            x: '推荐选择数值字段，例如面积、年龄、评分。',
+            y: '必须选择数值字段，例如价格、销量、收入。'
+        },
+        hist: {
+            chart: '适合查看单个数值字段的分布情况。',
+            x: '一般不用管 X 轴；系统会优先使用 Y 轴选择的数值字段。',
+            y: '推荐选择想查看分布的数值字段，例如价格、面积、年龄。'
+        },
+        box: {
+            chart: '适合查看数值字段的分布范围、离群值和中位数。',
+            x: '可选分类字段用于分组，例如地区、户型、等级；不想分组时可选任意字段。',
+            y: '必须选择要分析的数值字段，例如价格、面积、收入。'
+        },
+        heatmap: {
+            chart: '适合查看多个数值字段之间的相关性强弱。',
+            x: '不用特别选择；系统会自动读取数据中的数值字段。',
+            y: '不用特别选择；至少需要 2 个数值字段才能生成。'
+        },
+        scatter_matrix: {
+            chart: '适合一次查看多个数值字段两两之间的关系。',
+            x: '可优先选择你最关心的数值字段，系统会把它放进矩阵。',
+            y: '可优先选择另一个数值字段，系统最多选取 5 个数值字段展示。'
+        },
+        grouped_bar: {
+            chart: '适合比较不同类别下某个数值字段的平均值。',
+            x: '推荐选择分类字段，例如地区、类型、等级、卧室数。',
+            y: '必须选择数值字段，系统会按 X 轴分组后计算平均值。'
+        },
+        missing: {
+            chart: '适合查看每个字段缺失值数量，用于数据质量检查。',
+            x: '不用特别选择；系统会自动统计所有字段。',
+            y: '不用特别选择；系统会自动统计缺失数量。'
+        }
+    };
+    function update() {
+        f.value = (parseInt(w.value) || 8) + ',' + (parseInt(h.value) || 5);
+    }
+    function updateHelp() {
+        var text = helpText[chartType.value] || {};
+        help.textContent = text.chart || '';
+        xHelp.textContent = text.x || '';
+        yHelp.textContent = text.y || '';
+    }
+    w.addEventListener('input', update);
+    h.addEventListener('input', update);
+    chartType.addEventListener('change', updateHelp);
+    updateHelp();
+});
+</script>
+{% endblock %}

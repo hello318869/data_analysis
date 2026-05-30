@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}注册 - 交互式数据分析系统{% endblock %}
+
+{% block extra_css %}
+.register-container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 40px;
+}
+.register-card {
+    width: 100%;
+    max-width: 420px;
+}
+.register-card .card-body {
+    padding: 32px 28px;
+}
+.register-card h2 {
+    text-align: center;
+    margin-bottom: 8px;
+    color: var(--color-gray-800);
+}
+.register-card .register-subtitle {
+    text-align: center;
+    color: var(--color-gray-500);
+    font-size: 0.9rem;
+    margin-bottom: 28px;
+}
+.form-hint {
+    font-size: 0.78rem;
+    color: var(--color-gray-400);
+    margin-top: 4px;
+}
+.form-footer {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 0.9rem;
+    color: var(--color-gray-500);
+}
+.form-footer a {
+    font-weight: 600;
+}
+{% endblock %}
+
+{% block content %}
+<div class="register-container">
+    <div class="register-card card">
+        <div class="card-body">
+            <h2>📝 用户注册</h2>
+            <p class="register-subtitle">创建一个新账号来体验数据分析功能</p>
+
+            <form method="POST" action="/auth/register">
+                <div class="form-group">
+                    <label for="username">用户名</label>
+                    <input type="text" id="username" name="username" placeholder="请输入用户名" required autofocus minlength="3">
+                    <p class="form-hint">至少3位，仅支持字母、数字和下划线</p>
+                </div>
+                <div class="form-group">
+                    <label for="password">密码</label>
+                    <input type="password" id="password" name="password" placeholder="请输入密码" required minlength="6">
+                    <p class="form-hint">至少6位字符</p>
+                </div>
+                <div class="form-group">
+                    <label for="confirm_password">确认密码</label>
+                    <input type="password" id="confirm_password" name="confirm_password" placeholder="请再次输入密码" required minlength="6">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">注 册</button>
+            </form>
+
+            <p class="form-footer">
+                已有账号？<a href="/auth/login">立即登录</a>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.querySelector('form').addEventListener('submit', function(e) {
+    const username = this.querySelector('input[name="username"]').value.trim();
+    const password = this.querySelector('input[name="password"]').value;
+    const confirm = this.querySelector('input[name="confirm_password"]').value;
+
+    let errors = [];
+    if (!username) errors.push('请输入用户名');
+    else if (username.length < 3) errors.push('用户名至少3位');
+    if (!password) errors.push('请输入密码');
+    else if (password.length < 6) errors.push('密码至少6位');
+    if (password !== confirm) errors.push('两次输入的密码不一致');
+
+    if (errors.length > 0) {
+        e.preventDefault();
+        alert(errors.join('\\n'));
+        return false;
+    }
+});
+</script>
+{% endblock %}

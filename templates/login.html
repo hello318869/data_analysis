@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}登录 - 交互式数据分析系统{% endblock %}
+
+{% block extra_css %}
+.login-container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 40px;
+}
+.login-card {
+    width: 100%;
+    max-width: 420px;
+}
+.login-card .card-body {
+    padding: 32px 28px;
+}
+.login-card h2 {
+    text-align: center;
+    margin-bottom: 8px;
+    color: var(--color-gray-800);
+}
+.login-card .login-subtitle {
+    text-align: center;
+    color: var(--color-gray-500);
+    font-size: 0.9rem;
+    margin-bottom: 28px;
+}
+.form-footer {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 0.9rem;
+    color: var(--color-gray-500);
+}
+.form-footer a {
+    font-weight: 600;
+}
+{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="login-card card">
+        <div class="card-body">
+            <h2>🔑 用户登录</h2>
+            <p class="login-subtitle">登录以访问完整的数据分析功能</p>
+
+            <form method="POST" action="/auth/login">
+                <div class="form-group">
+                    <label for="username">用户名</label>
+                    <input type="text" id="username" name="username" placeholder="请输入用户名" required autofocus>
+                </div>
+                <div class="form-group">
+                    <label for="password">密码</label>
+                    <input type="password" id="password" name="password" placeholder="请输入密码" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">登 录</button>
+            </form>
+
+            <p class="form-footer">
+                还没有账号？<a href="/auth/register">立即注册</a>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.querySelector('form').addEventListener('submit', function(e) {
+    const username = this.querySelector('input[name="username"]').value.trim();
+    const password = this.querySelector('input[name="password"]').value.trim();
+    if (!username || !password) {
+        e.preventDefault();
+        alert('请填写用户名和密码');
+        return false;
+    }
+    if (username.length < 1) {
+        e.preventDefault();
+        alert('请输入用户名');
+        return false;
+    }
+});
+</script>
+{% endblock %}
